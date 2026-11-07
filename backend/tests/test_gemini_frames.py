@@ -150,7 +150,9 @@ def test_interactions_sdk_503_is_detected(monkeypatch):
 def test_timing_request_failure(monkeypatch):
     from types import SimpleNamespace
     from unittest.mock import MagicMock
+
     from google.genai import errors
+
     from app import gemini_frames
     from app.frame_selection import SelectedFrame
 
@@ -158,7 +160,9 @@ def test_timing_request_failure(monkeypatch):
         gemini_api_key="fake", gemini_model="gemini-3.6-flash",
         gemini_thinking_level="minimal", gemini_request_timeout_seconds=120,
     ))
-    clock = iter([0.0, 0.004, 0.005, 0.006, 0.040])
+    # Six readings: start/end of image encoding, client setup, API call.
+    # 0.007s starts the request; 0.041s finishes it (34 ms).
+    clock = iter([0.0, 0.004, 0.005, 0.006, 0.007, 0.041])
     monkeypatch.setattr(gemini_frames, "perf_counter", lambda: next(clock))
     sdk = MagicMock()
     sdk.interactions.create.side_effect = errors.ClientError(

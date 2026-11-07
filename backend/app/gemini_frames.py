@@ -1,4 +1,5 @@
 """One Gemini Interactions request containing multiple locally selected images."""
+
 import base64
 from collections.abc import Sequence
 from time import perf_counter
