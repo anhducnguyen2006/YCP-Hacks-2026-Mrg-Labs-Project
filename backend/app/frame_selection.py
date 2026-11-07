@@ -14,8 +14,6 @@ class SelectedFrame:
     timestamp_seconds: float
     jpeg: bytes
     sharpness: float
-    # Optional original-resolution center crop for visual handwriting evidence.
-    detail_jpeg: bytes | None = None
 
 
 class InvalidVideo(ValueError):
@@ -34,24 +32,6 @@ def _encode(frame: np.ndarray) -> bytes:
     ok, output = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
     if not ok:
         raise InvalidVideo("Could not encode a selected frame.")
-    return output.tobytes()
-
-
-def _encode_detail(frame: np.ndarray) -> bytes:
-    """Crop likely central tube text without inventing/enhancing characters.
-
-    This is not a trained date detector; the full frames remain available.
-    """
-    height, width = frame.shape[:2]
-    x0, x1 = round(width * 0.08), round(width * 0.92)
-    y0, y1 = round(height * 0.24), round(height * 0.76)
-    detail = frame[y0:y1, x0:x1]
-    if min(detail.shape[:2]) < 80:
-        # Tiny but valid videos should still be analyzed using original frames.
-        return _encode(frame)
-    ok, output = cv2.imencode(".jpg", detail, [cv2.IMWRITE_JPEG_QUALITY, 94])
-    if not ok:
-        raise InvalidVideo("Could not encode tube detail crop.")
     return output.tobytes()
 
 
@@ -95,10 +75,7 @@ def select_frames(path: Path, count: int = 8, candidate_count: int = 32) -> list
             lo = bin_index * len(candidates) // actual_count
             hi = (bin_index + 1) * len(candidates) // actual_count
             best = max(candidates[lo:hi], key=lambda item: item[1])
-            frames.append(SelectedFrame(
-                timestamp_seconds=best[0], jpeg=_encode(best[2]),
-                sharpness=best[1], detail_jpeg=_encode_detail(best[2]),
-            ))
+            frames.append(SelectedFrame(best[0], _encode(best[2]), best[1]))
         return sorted(frames, key=lambda frame: frame.timestamp_seconds)
     finally:
         cap.release()
