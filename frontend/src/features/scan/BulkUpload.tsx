@@ -15,6 +15,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const nextId = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const itemsRef = useRef(items);
@@ -30,10 +31,9 @@ export function BulkUpload({ batchId }: { batchId: string }) {
     queryFn: () => api.batchStatus(batchId),
     enabled: items.some((item) => Boolean(item.sampleId)),
     refetchInterval: (query) => {
-      const active = itemsRef.current.some((item) =>
-        Boolean(item.sampleId) && ["uploading", "queued", "processing"].includes(item.state)
-      );
-      return active || query.state.data?.queued || query.state.data?.processing ? 3000 : false;
+      const uploading = itemsRef.current.some((item) => item.state === "uploading");
+      const pendingServer = (query.state.data?.queued ?? 0) + (query.state.data?.processing ?? 0);
+      return uploading || pendingServer > 0 ? 3000 : false;
     },
   });
   const serverStates = new Map((status.data?.items ?? []).map((item) => [item.id, item.status]));
@@ -103,11 +103,13 @@ export function BulkUpload({ batchId }: { batchId: string }) {
       role="button"
       tabIndex={running ? -1 : 0}
       aria-label="Drop sample videos or browse files"
-      className="bulk-dropzone"
+      className={`bulk-dropzone${dragging ? " bulk-dropzone-active" : ""}`}
       onClick={() => { if (!running) fileInput.current?.click(); }}
       onKeyDown={(event) => { if ((event.key === "Enter" || event.key === " ") && !running) { event.preventDefault(); fileInput.current?.click(); } }}
       onDragOver={(event) => { event.preventDefault(); }}
-      onDrop={(event) => { event.preventDefault(); addFiles(Array.from(event.dataTransfer.files)); }}
+      onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}
+      onDragLeave={(event) => { event.preventDefault(); if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false); }}
+      onDrop={(event) => { event.preventDefault(); setDragging(false); addFiles(Array.from(event.dataTransfer.files)); }}
       style={{ cursor: running ? "not-allowed" : "pointer" }}
     >
       <UploadCloud size={32} color="#288647" />
