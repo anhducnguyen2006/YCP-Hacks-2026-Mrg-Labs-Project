@@ -23,15 +23,19 @@ function LegacyReviewRedirect() {
 }
 
 function Layout() {
-  const [opened, { toggle }] = useDisclosure();
+  const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] = useDisclosure(false);
+  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
   const [helpOpened, help] = useDisclosure(false);
   const location = useLocation();
   return (
-    <AppShell className="lab-shell" header={{ height: 80 }} navbar={{ width: 244, breakpoint: "sm", collapsed: { mobile: !opened } }} padding="xl">
+    <AppShell className="lab-shell" header={{ height: 80 }} navbar={{ width: 244, breakpoint: "sm", collapsed: { mobile: !mobileOpened, desktop: !desktopOpened } }} padding="xl">
       <AppShell.Header className="header">
         <Group h="100%" px="xl" justify="space-between">
           <Group gap="sm">
-            <Burger hiddenFrom="sm" opened={opened} onClick={toggle} size="sm" />
+            <Burger hiddenFrom="sm" opened={mobileOpened} onClick={toggleMobile} size="sm"
+              aria-label="Toggle mobile navigation" />
+            <Burger visibleFrom="sm" opened={desktopOpened} onClick={toggleDesktop} size="sm"
+              aria-label="Toggle desktop navigation" />
             <UnstyledButton component={RouterLink} to="/scan" className="brand">
               <span className="brand-logo-pair" role="img" aria-label="MRG Laboratories">
                 <img src="/mrg-laboratories.png" alt="" className="brand-logo brand-logo-light" />
@@ -52,7 +56,7 @@ function Layout() {
         <Text className="nav-label">WORKSPACE</Text>
         <Stack gap={4}>
           {navigation.map(({ label, icon: Icon, to }) => (
-            <NavLink key={to} component={RouterLink} to={to} label={label} leftSection={<Icon size={18} strokeWidth={1.8} />} active={location.pathname === to} onClick={toggle} />
+            <NavLink key={to} component={RouterLink} to={to} label={label} leftSection={<Icon size={18} strokeWidth={1.8} />} active={location.pathname === to} onClick={closeMobile} />
           ))}
         </Stack>
         <Box mt="auto" className="nav-footer">

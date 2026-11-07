@@ -229,4 +229,7 @@ html[data-reduce-motion="true"] .lab-welcome-hero .lab-gradient { animation: non
 .lab-shell .review-table td { min-width: 80px; overflow-wrap: anywhere; }
 .lab-shell .review-table th { white-space: normal; }
 .lab-shell .scan-page { max-width: 1500px; width: 100%; }
-@media (min-width: 1100px) { .lab-shell .mantine-AppShell-main { padding-inline: 18px; } }
+/* AppShell owns the navbar-aware main padding. Do not override padding-inline:
+   doing so places content beneath the desktop sidebar. */
+.lab-shell .mantine-AppShell-main { min-width: 0; }
+
