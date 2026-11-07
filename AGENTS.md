@@ -2,11 +2,11 @@
 
 ## Product scope
 
-MRG Sample Scanner digitizes laboratory grease/oil sample labels. This phase is the foundation only: do not present scanning, OCR, reconstruction, review automation, or CSV export as implemented. There is intentionally no History tab, cloud deployment, user authentication, or custom neural-network training.
+MRG Sample Scanner digitizes laboratory grease/oil sample labels. The current local integration supports video uploads, selected-frame Gemini extraction, RQ background processing, human field verification, and actual CSV export. Do not describe these as production-validated or claim calibrated AI confidence scores. Large-batch throughput and accuracy remain to be measured. There is intentionally no History tab, cloud deployment, user authentication, or custom neural-network training.
 
 ## Required stack
 
-- Frontend: React + TypeScript + Vite, Mantine, React Router, TanStack Table, TanStack Query, and spin-scan integration when scanning is implemented.
+- Frontend: React + TypeScript + Vite, Mantine, React Router, TanStack Table, TanStack Query, and frame-gallery review.
 - Backend: Python 3.12+, FastAPI, Pydantic v2, SQLAlchemy 2, Alembic, PostgreSQL, Redis, and RQ.
 - Tests: Vitest + React Testing Library and pytest.
 
@@ -37,3 +37,11 @@ Blank or inapplicable values must export as empty strings, never `N/A`. IDs, mac
 - Use environment variables for service configuration; never commit secrets.
 - Preserve the exact data contract above when adding models, templates, extraction, or export code.
 - Prefer focused tests beside the relevant feature or in the existing test directories.
+
+## Confidence contract
+
+Overall sample-level `ai_confidence` is a nullable, model-reported high/medium/low **subjective rating** with a short `ai_confidence_reason`. Never present it as calibrated probability. Existing records remain null until a separately authorized reanalysis. Human review remains required. Field-level numeric confidence must not be fabricated or derived from this sample-level value.
+
+## Current interface
+
+Navigation is intentionally researcher-focused: Scan, Samples, Export and Settings. The header Help button explains the workflow. The old Review route remains as a backwards-compatible redirect into Samples; do not add a duplicate Review or Batches navigation entry unless specifically requested. Sample review/edit is inline inside the Samples detail modal. Export prominently offers a real batch CSV download, with format and label mapping as secondary reference content.

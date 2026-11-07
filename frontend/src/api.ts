@@ -9,6 +9,18 @@ export type Batch = {
   updated_at: string;
 };
 
+export type BatchStatus = {
+  total: number;
+  queued: number;
+  processing: number;
+  completed: number;
+  failed: number;
+  needs_review: number;
+  items: { id: string; status: string }[];
+};
+
+export type InventoryResponse = { total: number; items: Sample[] };
+
 export type SampleField = {
   id: string;
   field_key: string;
@@ -36,6 +48,8 @@ export type Sample = {
   label_type: string;
   processing_status: string;
   review_status: string;
+  ai_confidence: "high" | "medium" | "low" | null;
+  ai_confidence_reason: string | null;
   created_at: string;
   updated_at: string;
   fields: SampleField[];
@@ -55,6 +69,29 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   baseUrl: API_BASE_URL,
   batches: () => request<Batch[]>("/api/batches"),
+  batchStatus: (batchId: string) => request<BatchStatus>(`/api/batches/${encodeURIComponent(batchId)}/status`),
+  deleteSamples: (batchId: string, sampleIds: string[]) =>
+    request<{ deleted: number }>(`/api/batches/${encodeURIComponent(batchId)}/samples/delete`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sample_ids: sampleIds }),
+    }),
+  inventory: (batchId: string, options: { search: string; status: string; confidence: string; sortBy: string; descending: boolean; offset: number }) => {
+    const params = new URLSearchParams({
+      search: options.search, status: options.status, confidence: options.confidence, sort_by: options.sortBy,
+      descending: String(options.descending), offset: String(options.offset), limit: "50",
+    });
+    return request<InventoryResponse>(`/api/batches/${encodeURIComponent(batchId)}/inventory?${params}`);
+  },
+  exportBatch: async (batchId: string, reviewedOnly = false): Promise<Blob> => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/batches/${encodeURIComponent(batchId)}/export.csv?reviewed_only=${reviewedOnly}`
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.detail ?? `Export failed (${response.status})`);
+    }
+    return response.blob();
+  },
   createBatch: (payload: Pick<Batch, "name" | "receiving_date" | "default_export_filename">) =>
     request<Batch>("/api/batches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }),
   samples: (batchId: string, offset = 0) => request<Sample[]>(`/api/batches/${batchId}/samples?offset=${offset}&limit=50`),

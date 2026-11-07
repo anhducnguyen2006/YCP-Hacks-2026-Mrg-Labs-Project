@@ -1,20 +1,25 @@
 """MRG Sample Scanner HTTP API backed by PostgreSQL and RQ."""
+import csv
+import logging
+from shutil import rmtree
+import io
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from redis import Redis
 from rq import Queue
-from sqlalchemy import select
+from sqlalchemy import select, func, or_, exists, case
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia, uid
 from app.schemas import (
-    FIELD_KEYS, BatchCreate, BatchOut, FieldCorrection, SampleOut,
+    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut, InventoryOut, SampleDeleteRequest,
 )
 from app.store import batch_out, sample_out
 
@@ -59,6 +64,95 @@ def create_batch(payload: BatchCreate, db: Session = Depends(get_db)) -> BatchOu
     return batch_out(batch)
 
 
+
+# Keep the historical template spelling and column order exactly as specified.
+CSV_HEADERS = (
+    "Sample ID", "Date Sampled", "Date Received", "Machine",
+    "Component", "Serial Number", "Refrence Lube",
+)
+
+
+@app.get("/api/batches/{batch_id}/status", response_model=BatchStatusOut)
+def batch_status(batch_id: str, db: Session = Depends(get_db)) -> BatchStatusOut:
+    """One lightweight polling request for the whole batch, including per-video status."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    items = db.execute(
+        select(Sample.id, Sample.processing_status)
+        .where(Sample.batch_id == batch_id)
+        .order_by(Sample.created_at, Sample.id)
+    ).all()
+    counts = {status: 0 for status in ("queued", "processing", "completed", "failed")}
+    for _, status in items:
+        counts[status] = counts.get(status, 0) + 1
+    ids = [sample_id for sample_id, _ in items]
+    needs_review = 0
+    if ids:
+        needs_review = len(db.scalars(
+            select(SampleField.sample_id).where(
+                SampleField.sample_id.in_(ids),
+                SampleField.review_required.is_(True),
+                SampleField.reviewed.is_(False),
+            ).distinct()
+        ).all())
+    return BatchStatusOut(
+        total=len(items), queued=counts["queued"], processing=counts["processing"],
+        completed=counts["completed"], failed=counts["failed"],
+        needs_review=needs_review,
+        items=[BatchSampleStatusOut(id=sid, status=status) for sid, status in items],
+    )
+
+
+@app.get("/api/batches/{batch_id}/export.csv")
+def export_batch_csv(
+    batch_id: str, reviewed_only: bool = False, db: Session = Depends(get_db)
+) -> Response:
+    """Download all completed samples, not just the first paginated frontend page."""
+    batch = db.get(Batch, batch_id)
+    if batch is None:
+        raise HTTPException(404, "Batch not found.")
+    samples = db.scalars(
+        select(Sample).where(
+            Sample.batch_id == batch_id, Sample.processing_status == "completed"
+        ).order_by(Sample.created_at, Sample.id)
+    ).all()
+    ids = [sample.id for sample in samples]
+    fields_by_sample: dict[str, dict[str, SampleField]] = {sid: {} for sid in ids}
+    if ids:
+        for field in db.scalars(
+            select(SampleField).where(SampleField.sample_id.in_(ids))
+        ):
+            fields_by_sample[field.sample_id][field.field_key] = field
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\r\n")
+    writer.writerow(CSV_HEADERS)
+    for sample in samples:
+        fields = fields_by_sample[sample.id]
+        if reviewed_only and any(
+            field.review_required and not field.reviewed
+            for field in fields.values()
+        ):
+            continue
+        values = [
+            (fields.get(key).current_value if fields.get(key) else None) or ""
+            for key in FIELD_KEYS
+        ]
+        # Date Received is a property of the batch; Gemini must never supply it.
+        values[2] = batch.receiving_date
+        writer.writerow(values)
+    # Keep filename ASCII-only for a safe HTTP Content-Disposition value.
+    filename = re.sub(r"[^A-Za-z0-9._-]", "_", batch.default_export_filename)
+    if not filename.lower().endswith(".csv"):
+        filename = "mrg-samples.csv"
+    return Response(
+        content=output.getvalue(), media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 @app.get("/api/batches/{batch_id}/samples", response_model=list[SampleOut])
 def list_samples(
     batch_id: str, offset: int = 0, limit: int = 50, db: Session = Depends(get_db)
@@ -73,6 +167,115 @@ def list_samples(
         .offset(offset).limit(limit)
     ).all()
     return [sample_out(db, s) for s in samples]
+
+
+
+@app.get("/api/batches/{batch_id}/inventory", response_model=InventoryOut)
+def inventory(
+    batch_id: str, search: str = "", sort_by: str = "created_at",
+    descending: bool = True, status: str = "all", confidence: str = "all",
+    offset: int = 0, limit: int = 50, db: Session = Depends(get_db),
+) -> InventoryOut:
+    """Search and sort all batch records before applying pagination."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    if offset < 0 or not 1 <= limit <= 100 or len(search) > 200:
+        raise HTTPException(422, "Invalid inventory query.")
+    sortable = {
+        "sample_id", "date_sampled", "date_received", "machine",
+        "component", "serial_number", "reference_lube",
+    }
+    if sort_by not in sortable | {"created_at", "confidence"}:
+        raise HTTPException(422, "Unsupported sort field.")
+    if status not in {"all", "queued", "processing", "completed", "failed", "review"}:
+        raise HTTPException(422, "Unsupported status.")
+    if confidence not in {"all", "high", "medium", "low", "unrated"}:
+        raise HTTPException(422, "Unsupported confidence filter.")
+    stmt = select(Sample).where(Sample.batch_id == batch_id)
+    term = search.strip().lower()
+    if term:
+        matching_field = exists(select(SampleField.id).where(
+            SampleField.sample_id == Sample.id,
+            func.lower(SampleField.current_value).contains(term),
+        ))
+        stmt = stmt.where(or_(
+            func.lower(Sample.id).contains(term),
+            func.lower(Sample.external_sample_id).contains(term),
+            matching_field,
+        ))
+    if status == "review":
+        stmt = stmt.where(exists(select(SampleField.id).where(
+            SampleField.sample_id == Sample.id,
+            SampleField.review_required.is_(True),
+            SampleField.reviewed.is_(False),
+        )))
+    elif status != "all":
+        stmt = stmt.where(Sample.processing_status == status)
+    if confidence == "unrated":
+        stmt = stmt.where(Sample.ai_confidence.is_(None))
+    elif confidence != "all":
+        stmt = stmt.where(Sample.ai_confidence == confidence)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    if sort_by in sortable:
+        key = select(SampleField.current_value).where(
+            SampleField.sample_id == Sample.id, SampleField.field_key == sort_by
+        ).correlate(Sample).scalar_subquery()
+    elif sort_by == "confidence":
+        key = case(
+            (Sample.ai_confidence == "high", 3),
+            (Sample.ai_confidence == "medium", 2),
+            (Sample.ai_confidence == "low", 1),
+            else_=0,
+        )
+    else:
+        key = Sample.created_at
+    stmt = stmt.order_by(
+        key.desc().nullslast() if descending else key.asc().nullsfirst(),
+        Sample.created_at.desc(), Sample.id.desc(),
+    ).offset(offset).limit(limit)
+    return InventoryOut(total=total, items=[sample_out(db, s) for s in db.scalars(stmt)])
+
+
+
+@app.post("/api/batches/{batch_id}/samples/delete")
+def delete_selected_samples(
+    batch_id: str, payload: SampleDeleteRequest, db: Session = Depends(get_db)
+) -> dict[str, int]:
+    """Remove selected inactive sample records after explicit UI confirmation."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    ids = list(dict.fromkeys(payload.sample_ids))
+    samples = db.scalars(
+        select(Sample).where(Sample.batch_id == batch_id, Sample.id.in_(ids))
+        .with_for_update()
+    ).all()
+    if len(samples) != len(ids):
+        raise HTTPException(404, "One or more samples are not in the selected batch.")
+    jobs = db.scalars(select(ProcessingJob).where(ProcessingJob.sample_id.in_(ids))).all()
+    if any(s.processing_status == "processing" for s in samples) or any(
+        job.status in {"queued", "processing"} for job in jobs
+    ):
+        raise HTTPException(409, "Cannot remove samples with active analysis jobs.")
+    media = db.scalars(select(SampleMedia).where(SampleMedia.sample_id.in_(ids))).all()
+    fields = db.scalars(select(SampleField).where(SampleField.sample_id.in_(ids))).all()
+    for record in fields:
+        db.delete(record)
+    for record in media:
+        db.delete(record)
+    for record in jobs:
+        db.delete(record)
+    for record in samples:
+        db.delete(record)
+    db.commit()
+    root = Path(settings.media_root).resolve()
+    for sid in ids:
+        folder = (root / sid).resolve()
+        if folder.parent == root and folder.is_dir():
+            try:
+                rmtree(folder)
+            except OSError:
+                logging.exception("Could not clean saved media for deleted sample %s", sid)
+    return {"deleted": len(ids)}
 
 
 @app.post("/api/batches/{batch_id}/samples", response_model=SampleOut, status_code=201)

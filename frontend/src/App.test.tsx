@@ -14,5 +14,8 @@ test("renders the sample scanner navigation", () => {
     </MantineProvider>,
   );
   expect(screen.getByRole("img", { name: "MRG Laboratories" })).toBeInTheDocument();
-  expect(screen.getByText("Templates & Export")).toBeInTheDocument();
+  expect(screen.getByText("Export")).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Review" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Batches" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "How to use Sample Scanner" })).toBeInTheDocument();
 });

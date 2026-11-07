@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db import SessionLocal
 from app.frame_selection import select_frames
-from app.gemini_frames import analyze_selected_frames
+from app.gemini_frames import GeminiRateLimitError, GeminiUnavailableError, analyze_selected_frames
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia
 from app.schemas import FIELD_KEYS
 
@@ -80,6 +80,8 @@ def process_sample(sample_id: str, job_id: str) -> None:
             batch = db.get(Batch, sample.batch_id)
             if not batch:
                 raise ValueError("Batch missing while saving results.")
+            sample.ai_confidence = extraction.overall_confidence
+            sample.ai_confidence_reason = extraction.confidence_reason
             sample.label_type = extraction.label_type
             sample.external_sample_id = extraction.sample_id
             existing = {
@@ -141,6 +143,14 @@ def process_sample(sample_id: str, job_id: str) -> None:
             if job:
                 job.status = "failed"
                 job.current_stage = "failed"
-                job.error_message = f"Analysis failed ({type(exc).__name__}). Check worker logs."
+                job.error_message = (
+                    "Gemini API rate/quota limit (HTTP 429). Retry this sample after "
+                    "capacity becomes available; no re-upload required."
+                    if isinstance(exc, GeminiRateLimitError) else
+                    "Gemini is temporarily overloaded (HTTP 503). Retry this sample "
+                    "later; the uploaded video is retained."
+                    if isinstance(exc, GeminiUnavailableError) else
+                    f"Analysis failed ({type(exc).__name__}). Check worker logs."
+                )
             db.commit()
         raise

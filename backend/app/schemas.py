@@ -31,6 +31,21 @@ class BatchOut(BaseModel):
     updated_at: datetime
 
 
+class BatchSampleStatusOut(BaseModel):
+    id: str
+    status: str
+
+
+class BatchStatusOut(BaseModel):
+    total: int
+    queued: int
+    processing: int
+    completed: int
+    failed: int
+    needs_review: int
+    items: list[BatchSampleStatusOut]
+
+
 class FieldOut(BaseModel):
     id: str
     field_key: str
@@ -64,11 +79,22 @@ class SampleOut(BaseModel):
     label_type: str
     processing_status: str
     review_status: str
+    ai_confidence: Literal["high", "medium", "low"] | None
+    ai_confidence_reason: str | None
     created_at: datetime
     updated_at: datetime
     fields: list[FieldOut]
     media: list[MediaOut]
     latest_job: JobOut | None
+
+
+class InventoryOut(BaseModel):
+    total: int
+    items: list[SampleOut]
+
+
+class SampleDeleteRequest(BaseModel):
+    sample_ids: list[str] = Field(min_length=1, max_length=100)
 
 
 class FieldCorrection(BaseModel):
@@ -89,3 +115,5 @@ class CompactExtraction(BaseModel):
     reference_lube: str | None
     uncertain_fields: list[str]
     unreadable_fields: list[str]
+    overall_confidence: Literal["high", "medium", "low"]
+    confidence_reason: str

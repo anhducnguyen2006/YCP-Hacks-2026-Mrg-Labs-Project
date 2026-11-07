@@ -161,3 +161,24 @@ h1, h2, h3 { color: #102e51; letter-spacing: -.025em; }
   .home-motion .mantine-Paper-root, .home-motion .mantine-Button-root, .navbar .mantine-NavLink-root { transition: none; }
   .home-motion .mantine-Button-root:hover { transform: none; }
 }
+
+/* Batch video intake */
+.bulk-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 165px;
+  padding: 22px;
+  text-align: center;
+  border: 2px dashed #a8c8b1;
+  border-radius: 14px;
+  background: #f3f9f5;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.bulk-dropzone:hover, .bulk-dropzone:focus-visible, .bulk-dropzone-active {
+  border-color: #32a557;
+  background: #e7f6eb;
+  outline-offset: 3px;
+}

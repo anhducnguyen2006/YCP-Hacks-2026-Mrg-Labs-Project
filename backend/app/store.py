@@ -25,6 +25,7 @@ def sample_out(db: Session, sample: Sample) -> SampleOut:
         id=sample.id, batch_id=sample.batch_id,
         external_sample_id=sample.external_sample_id, label_type=sample.label_type,
         processing_status=sample.processing_status, review_status=sample.review_status,
+        ai_confidence=sample.ai_confidence, ai_confidence_reason=sample.ai_confidence_reason,
         created_at=sample.created_at, updated_at=sample.updated_at,
         fields=[FieldOut.model_validate({
             "id": f.id, "field_key": f.field_key, "predicted_value": f.predicted_value,
