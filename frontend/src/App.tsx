@@ -11,7 +11,7 @@ import { HomePage } from "./features/batches/HomePage";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 
 const navigation = [
-  { label: "Welcome", icon: House, to: "/welcome" },
+  { label: "Home", icon: House, to: "/welcome" },
   { label: "Scan", icon: ScanLine, to: "/scan" },
   { label: "Samples", icon: FlaskConical, to: "/samples" },
   { label: "Export", icon: FileSliders, to: "/templates" },
