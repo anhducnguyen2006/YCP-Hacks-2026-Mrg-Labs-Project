@@ -43,7 +43,7 @@ function EditableField({ sample, field, label, onSaved, warning }: {
         </Text>}
       </Box>
       {!editing && <Button color={warning ? "red" : "green"} variant="subtle" size="compact-xs"
-        leftSection={<Pencil size={12} />} onClick={startEditing}>Edit / verify</Button>}
+        leftSection={<Pencil size={12} />} onClick={startEditing}>Edit field</Button>}
     </Group>
     {warning && sample.review_status !== "verified" && <Text size="xs" c="red" fw={600} mt="xs">
       {warning.message}

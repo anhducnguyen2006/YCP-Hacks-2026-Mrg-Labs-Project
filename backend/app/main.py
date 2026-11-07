@@ -94,16 +94,13 @@ def batch_status(batch_id: str, db: Session = Depends(get_db)) -> BatchStatusOut
     counts = {status: 0 for status in ("queued", "processing", "completed", "failed")}
     for _, status in items:
         counts[status] = counts.get(status, 0) + 1
-    ids = [sample_id for sample_id, _ in items]
-    needs_review = 0
-    if ids:
-        needs_review = len(db.scalars(
-            select(SampleField.sample_id).where(
-                SampleField.sample_id.in_(ids),
-                SampleField.review_required.is_(True),
-                SampleField.reviewed.is_(False),
-            ).distinct()
-        ).all())
+    needs_review = db.scalar(
+        select(func.count()).select_from(Sample).where(
+            Sample.batch_id == batch_id,
+            Sample.processing_status == "completed",
+            Sample.review_status != "verified",
+        )
+    ) or 0
     return BatchStatusOut(
         total=len(items), queued=counts["queued"], processing=counts["processing"],
         completed=counts["completed"], failed=counts["failed"],
@@ -137,10 +134,7 @@ def export_batch_csv(
     writer.writerow(CSV_HEADERS)
     for sample in samples:
         fields = fields_by_sample[sample.id]
-        if reviewed_only and any(
-            field.review_required and not field.reviewed
-            for field in fields.values()
-        ):
+        if reviewed_only and sample.review_status != "verified":
             continue
         values = [
             (fields.get(key).current_value if fields.get(key) else None) or ""
@@ -183,7 +177,8 @@ def list_samples(
 def inventory(
     batch_id: str, search: str = "", sort_by: str = "created_at",
     descending: bool = True, status: str = "all", confidence: str = "all",
-    offset: int = 0, limit: int = 50, db: Session = Depends(get_db),
+    offset: int = 0, limit: int = 50, flagged_only: bool = False,
+    db: Session = Depends(get_db),
 ) -> InventoryOut:
     """Search and sort all batch records before applying pagination."""
     if db.get(Batch, batch_id) is None:
@@ -201,6 +196,12 @@ def inventory(
     if confidence not in {"all", "high", "medium", "low", "unrated"}:
         raise HTTPException(422, "Unsupported confidence filter.")
     stmt = select(Sample).where(Sample.batch_id == batch_id)
+    if flagged_only:
+        flagged = batch_quality(db, batch_id)["flags"]
+        stmt = stmt.where(
+            Sample.id.in_(list(flagged.keys())),
+            Sample.review_status != "verified",
+        )
     term = search.strip().lower()
     if term:
         matching_field = exists(select(SampleField.id).where(

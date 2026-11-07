@@ -42,7 +42,7 @@ export function SamplesPage() {
 
   const batches = useQuery({ queryKey: ["batches"], queryFn: api.batches, retry: false });
   const inventory = useQuery({
-    queryKey: ["inventory", batchId, deferredSearch, status, confidence, sortBy, direction, offset],
+    queryKey: ["inventory", batchId, deferredSearch, status, confidence, sortBy, direction, offset, flaggedOnly],
     queryFn: () => api.inventory(batchId!, {
       search: deferredSearch,
       status: status ?? "all",
@@ -50,6 +50,7 @@ export function SamplesPage() {
       sortBy: sortBy ?? "created_at",
       descending: direction !== "asc",
       offset,
+      flaggedOnly,
     }),
     enabled: Boolean(batchId),
     retry: false,
@@ -90,9 +91,7 @@ export function SamplesPage() {
   const rows = inventory.data?.items ?? [];
   const total = inventory.data?.total ?? 0;
   const flagged = quality.data?.flags ?? {};
-  const visibleRows = flaggedOnly
-    ? rows.filter((sample) => (flagged[sample.id] ?? []).length > 0 && sample.review_status !== "verified")
-    : rows;
+  const visibleRows = rows;
   const pageIds = visibleRows.map((sample) => sample.id);
   const allOnPage = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
   const someOnPage = pageIds.some((id) => selectedIds.includes(id));
@@ -163,7 +162,7 @@ export function SamplesPage() {
           data={[{ value: "asc", label: "Ascending" }, { value: "desc", label: "Descending" }]} />
         <Button variant={flaggedOnly ? "filled" : "outline"} color="red"
           onClick={() => { setFlaggedOnly((value) => !value); setSelectedIds([]); }}>
-          {flaggedOnly ? "Show all on page" : "Show flagged on page"}
+          {flaggedOnly ? "Show all samples" : "Show flagged samples"}
         </Button>
         <Button variant="default" loading={inventory.isFetching || quality.isFetching}
           leftSection={<RefreshCw size={16} />}
@@ -250,7 +249,7 @@ export function SamplesPage() {
       {!batchId && <Text c="dimmed" size="sm" ta="center" p="xl">Choose a batch to see its samples.</Text>}
       {batchId && inventory.isSuccess && visibleRows.length === 0 &&
         <Text c="dimmed" size="sm" ta="center" p="xl">
-          {flaggedOnly ? "No flagged, unverified samples on this page." : "No samples match the current filters."}
+          {flaggedOnly ? "No flagged, unverified samples match the filters." : "No samples match the current filters."}
         </Text>}
       <Group justify="space-between" p="lg">
         <Text size="xs" c="dimmed">{batchId ? `Showing ${total === 0 ? 0 : offset + 1}–${Math.min(offset + 50, total)} of ${total} records` : "50 records per page"}</Text>

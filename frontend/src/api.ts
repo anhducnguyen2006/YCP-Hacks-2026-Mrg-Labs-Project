@@ -89,10 +89,11 @@ export const api = {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sample_ids: sampleIds }),
     }),
-  inventory: (batchId: string, options: { search: string; status: string; confidence: string; sortBy: string; descending: boolean; offset: number }) => {
+  inventory: (batchId: string, options: { search: string; status: string; confidence: string; sortBy: string; descending: boolean; offset: number; flaggedOnly?: boolean }) => {
     const params = new URLSearchParams({
       search: options.search, status: options.status, confidence: options.confidence, sort_by: options.sortBy,
       descending: String(options.descending), offset: String(options.offset), limit: "50",
+      flagged_only: String(options.flaggedOnly ?? false),
     });
     return request<InventoryResponse>(`/api/batches/${encodeURIComponent(batchId)}/inventory?${params}`);
   },
