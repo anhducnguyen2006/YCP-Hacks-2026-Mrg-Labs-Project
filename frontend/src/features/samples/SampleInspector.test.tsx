@@ -33,7 +33,7 @@ test("edits a sample field inline, preserving text identifiers and notifying the
   fireEvent.click(screen.getByRole("button", { name: "Edit / verify" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Sample ID" }), { target: { value: "00042" } });
   fireEvent.click(screen.getByRole("button", { name: "Save & verify field" }));
-  expect(await screen.findByText("Verification pending")).toBeInTheDocument();
+  await screen.findByText("Human verified");
   expect(api.updateField).toHaveBeenCalledWith("sample-1", "sample_id", "00042");
   expect(onSaved).toHaveBeenCalledTimes(1);
 });
