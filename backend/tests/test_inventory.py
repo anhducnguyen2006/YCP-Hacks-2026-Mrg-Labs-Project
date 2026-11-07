@@ -53,6 +53,9 @@ def test_search_sort_and_confidence_survive_api_serialization(setup):
     assert all_items.json()["total"] == 3
     assert [r["ai_confidence"] for r in all_items.json()["items"]] == [None, "low", "high"]
     assert all_items.json()["items"][1]["ai_confidence_reason"] == "Blurry handwriting"
+    low_only = http.get(f"/api/batches/{bid}/inventory", params={"confidence": "low"})
+    assert low_only.json()["total"] == 1
+    assert low_only.json()["items"][0]["ai_confidence"] == "low"
     found = http.get(f"/api/batches/{bid}/inventory", params={"search": "turb"})
     assert found.json()["total"] == 1
     assert found.json()["items"][0]["external_sample_id"] is None

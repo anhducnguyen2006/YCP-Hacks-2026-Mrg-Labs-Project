@@ -173,7 +173,7 @@ def list_samples(
 @app.get("/api/batches/{batch_id}/inventory", response_model=InventoryOut)
 def inventory(
     batch_id: str, search: str = "", sort_by: str = "created_at",
-    descending: bool = True, status: str = "all",
+    descending: bool = True, status: str = "all", confidence: str = "all",
     offset: int = 0, limit: int = 50, db: Session = Depends(get_db),
 ) -> InventoryOut:
     """Search and sort all batch records before applying pagination."""
@@ -189,6 +189,8 @@ def inventory(
         raise HTTPException(422, "Unsupported sort field.")
     if status not in {"all", "queued", "processing", "completed", "failed", "review"}:
         raise HTTPException(422, "Unsupported status.")
+    if confidence not in {"all", "high", "medium", "low", "unrated"}:
+        raise HTTPException(422, "Unsupported confidence filter.")
     stmt = select(Sample).where(Sample.batch_id == batch_id)
     term = search.strip().lower()
     if term:
@@ -209,6 +211,10 @@ def inventory(
         )))
     elif status != "all":
         stmt = stmt.where(Sample.processing_status == status)
+    if confidence == "unrated":
+        stmt = stmt.where(Sample.ai_confidence.is_(None))
+    elif confidence != "all":
+        stmt = stmt.where(Sample.ai_confidence == confidence)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     if sort_by in sortable:
         key = select(SampleField.current_value).where(

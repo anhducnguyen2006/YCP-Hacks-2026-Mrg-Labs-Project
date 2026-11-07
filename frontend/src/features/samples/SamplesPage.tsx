@@ -26,6 +26,7 @@ export function SamplesPage() {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
   const [status, setStatus] = useState<string | null>("all");
+  const [confidence, setConfidence] = useState<string | null>("all");
   const [sortBy, setSortBy] = useState<string | null>("created_at");
   const [direction, setDirection] = useState<string | null>("desc");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -34,10 +35,11 @@ export function SamplesPage() {
 
   const batches = useQuery({ queryKey: ["batches"], queryFn: api.batches, retry: false });
   const inventory = useQuery({
-    queryKey: ["inventory", batchId, deferredSearch, status, sortBy, direction, offset],
+    queryKey: ["inventory", batchId, deferredSearch, status, confidence, sortBy, direction, offset],
     queryFn: () => api.inventory(batchId!, {
       search: deferredSearch,
       status: status ?? "all",
+      confidence: confidence ?? "all",
       sortBy: sortBy ?? "created_at",
       descending: direction !== "asc",
       offset,
@@ -101,6 +103,14 @@ export function SamplesPage() {
             { value: "completed", label: "Completed" },
             { value: "failed", label: "Failed" },
             { value: "review", label: "Needs review" },
+          ]} />
+        <Select label="AI confidence" value={confidence} onChange={(value) => { setConfidence(value); resetList(); }}
+          data={[
+            { value: "all", label: "Any confidence" },
+            { value: "low", label: "Low — investigate" },
+            { value: "medium", label: "Medium" },
+            { value: "high", label: "High" },
+            { value: "unrated", label: "Not rated (older scans)" },
           ]} />
         <Select label="Sort by" value={sortBy} onChange={(value) => { setSortBy(value); resetList(); }} data={SORT_OPTIONS} />
         <Select label="Order" value={direction} onChange={(value) => { setDirection(value); resetList(); }}
