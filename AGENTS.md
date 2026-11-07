@@ -2,11 +2,11 @@
 
 ## Product scope
 
-MRG Sample Scanner digitizes laboratory grease/oil sample labels. This phase is the foundation only: do not present scanning, OCR, reconstruction, review automation, or CSV export as implemented. There is intentionally no History tab, cloud deployment, user authentication, or custom neural-network training.
+MRG Sample Scanner digitizes laboratory grease/oil sample labels. The current local integration supports video uploads, selected-frame Gemini extraction, RQ background processing, human field verification, and actual CSV export. Do not describe these as production-validated or claim calibrated AI confidence scores. Large-batch throughput and accuracy remain to be measured. There is intentionally no History tab, cloud deployment, user authentication, or custom neural-network training.
 
 ## Required stack
 
-- Frontend: React + TypeScript + Vite, Mantine, React Router, TanStack Table, TanStack Query, and spin-scan integration when scanning is implemented.
+- Frontend: React + TypeScript + Vite, Mantine, React Router, TanStack Table, TanStack Query, and frame-gallery review.
 - Backend: Python 3.12+, FastAPI, Pydantic v2, SQLAlchemy 2, Alembic, PostgreSQL, Redis, and RQ.
 - Tests: Vitest + React Testing Library and pytest.
 

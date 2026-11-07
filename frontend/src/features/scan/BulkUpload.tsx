@@ -104,7 +104,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
       tabIndex={running ? -1 : 0}
       aria-label="Drop sample videos or browse files"
       className={`bulk-dropzone${dragging ? " bulk-dropzone-active" : ""}`}
-      onClick={() => { if (!running) fileInput.current?.click(); }}
+      onClick={(event) => { if (!running && event.target !== fileInput.current) fileInput.current?.click(); }}
       onKeyDown={(event) => { if ((event.key === "Enter" || event.key === " ") && !running) { event.preventDefault(); fileInput.current?.click(); } }}
       onDragOver={(event) => { event.preventDefault(); }}
       onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}

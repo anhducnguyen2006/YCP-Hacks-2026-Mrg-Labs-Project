@@ -4,16 +4,16 @@ MRG Sample Scanner digitizes short rotation videos of cylindrical laboratory sam
 
 ## Current implementation
 
-- React + Mantine workspaces: Batches, Scan, Samples, Review, Templates, Settings.
-- FastAPI endpoints for batches, uploads, queued analysis, saved sample fields, manual corrections, and media.
-- PostgreSQL persistence, Redis/RQ background job, shared media volume.
-- **Experimental selected-frame extraction:** OpenCV scans a short video locally, selects up to 8 sharp frames distributed across the rotation, and sends them together to Gemini in **one API request per sample**.
-- Gemini returns a compact seven-field extraction; the worker adds the batch receiving date and requires human review of AI-read fields.
-- Review includes source video and a saved keyframe. The frontend currently previews the first keyframe; additional selected frames remain available via the media API.
-- Template page downloads a **blank** CSV, not real sample results. Export of reviewed samples is not implemented yet.
-- Live capture, automated character-level accuracy and 800-sample concurrency/rate-limiting are **not yet implemented**.
+- React + Mantine workspaces: Batches, Scan, Samples, Review, Templates & Export, Settings.
+- FastAPI HTTP API backed by PostgreSQL; media stored on the shared Docker volume.
+- Redis/RQ worker performs local frame extraction and sends up to eight selected images to Gemini in one request per sample.
+- Scan supports single-video upload/analysis **and** drag-and-drop multi-video intake (up to 800 videos, 50 MB each, two concurrent uploads). Bulk uploads automatically enqueue analysis. Keep the browser page open until upload requests finish; already queued analyses continue in the worker.
+- Review: click a sample row to open the source video, all selected frame thumbnails, original/extracted values, and editable fields in a modal.
+- Review signals: green = human verified, yellow = needs verification, red = Gemini flagged ambiguity, gray = not applicable or no review required. **These are workflow signals, not calibrated model confidence percentages.**
+- Templates & Export: download either a blank seven-column template or real CSV records for a selected batch, including pages beyond the first 50. Exports use current corrected values; optional reviewed-only filter.
+- Live camera scanning, reliable resumable browser uploads, batch-wide searching/sorting, and full 800-sample throughput/accuracy validation are **not yet implemented**.
 
-This branch is an integration MVP, not an accuracy-tested production system.
+This branch remains an integration MVP, not a production-validated scanner. Verify all AI-read fields.
 
 ## Setup
 
@@ -29,7 +29,7 @@ Requires Docker Desktop and a Gemini API key.
    docker compose up --build
    ```
 4. Open http://localhost:5173. API docs: http://localhost:8000/docs.
-5. From **Scan**, create a batch, choose a short MOV/MP4/WebM tube video (50 MB maximum), click **Upload to batch**, then **Analyze label**. Wait while RQ runs locally; Review displays the extracted fields and selected keyframe.
+5. From **Scan**, create or select a batch, then either drop several MOV/MP4/WebM videos into the bulk uploader and select **Upload & analyze**, or use the manual single-video upload/analyze controls. From **Review**, click any sample row to inspect and edit it. **Templates & Export** downloads the completed sample records.
 
 **Important:** Stop the old or temporary project's services first if ports 5173, 8000, 5432 or 6379 are occupied. This repo's .env must be used from the repo root. Container paths use the shared `sample_media` Docker volume.
 
@@ -41,11 +41,11 @@ GEMINI_THINKING_LEVEL=minimal
 SELECTED_FRAME_COUNT=8
 ```
 
-Frame selection is local. No Gemini API calls are made until **Analyze label** is clicked. The configured model can be changed if your account supports another model.
+Frame selection is local. Gemini is called only when analysis is queued (automatically by bulk upload or manually by the single-video workflow). The configured model can be changed if your account supports another model.
 
 The backend decodes up to 32 candidate frames using OpenCV and chooses the sharpest frame in each of 8 evenly distributed time bins. This method preserves coverage across the full rotation but does **not** guarantee a complete label view. Camera focus, glare, label curvature, and handwriting can still cause mistakes. The worker stores all selected frames, maintains record IDs as strings, and uses the batch receiving date rather than asking Gemini to infer it.
 
-**Critical quality warning:** Earlier one-video tests on the separate temporary prototype showed inaccurate serial numbers from single-pass inference. This branch has not been verified against a real sample; do not assume serial numbers are correct without technician verification.
+**Critical quality warning:** Real sample videos have been tested, including a five-sample walkthrough, but handwriting and dates can still be misread (for example, year digits). These limited tests do not establish statistical accuracy. Technician verification remains mandatory.
 
 ## Tests
 
@@ -53,7 +53,7 @@ The backend decodes up to 32 candidate frames using OpenCV and chooses the sharp
 docker compose run --rm api pytest
 docker compose run --rm api ruff check app tests
 cd frontend
-npm install
+npm ci
 npm run typecheck
 npm run lint
 npm run test
