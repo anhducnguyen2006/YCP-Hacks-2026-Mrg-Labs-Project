@@ -22,6 +22,7 @@ from app.schemas import (
     FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut, InventoryOut, SampleDeleteRequest,
 )
 from app.store import batch_out, sample_out
+from app.quality import batch_quality
 
 settings = get_settings()
 app = FastAPI(title="MRG Sample Scanner API", version="0.2.0")
@@ -70,6 +71,14 @@ CSV_HEADERS = (
     "Sample ID", "Date Sampled", "Date Received", "Machine",
     "Component", "Serial Number", "Refrence Lube",
 )
+
+
+@app.get("/api/batches/{batch_id}/quality")
+def quality_report(batch_id: str, db: Session = Depends(get_db)) -> dict:
+    """Detect suspicious or unreadable fields across the complete batch."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    return batch_quality(db, batch_id)
 
 
 @app.get("/api/batches/{batch_id}/status", response_model=BatchStatusOut)
@@ -382,6 +391,33 @@ def update_field(
     field.reviewed = True
     field.review_required = False
     field.review_reason = None
+    sample.review_status = "pending"
+    sample.updated_at = _now()
+    db.commit()
+    return sample_out(db, sample)
+
+
+@app.post("/api/samples/{sample_id}/verify", response_model=SampleOut)
+def verify_sample(sample_id: str, db: Session = Depends(get_db)) -> SampleOut:
+    """A reviewer confirms the complete sample after checking source evidence."""
+    sample = db.get(Sample, sample_id)
+    if sample is None:
+        raise HTTPException(404, "Sample not found.")
+    if sample.processing_status != "completed":
+        raise HTTPException(409, "Only completed samples can be verified.")
+    sample.review_status = "verified"
+    sample.updated_at = _now()
+    db.commit()
+    return sample_out(db, sample)
+
+
+@app.post("/api/samples/{sample_id}/reopen", response_model=SampleOut)
+def reopen_sample(sample_id: str, db: Session = Depends(get_db)) -> SampleOut:
+    sample = db.get(Sample, sample_id)
+    if sample is None:
+        raise HTTPException(404, "Sample not found.")
+    if sample.processing_status != "completed":
+        raise HTTPException(409, "Only completed samples can be reopened.")
     sample.review_status = "pending"
     sample.updated_at = _now()
     db.commit()
