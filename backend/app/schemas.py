@@ -31,6 +31,21 @@ class BatchOut(BaseModel):
     updated_at: datetime
 
 
+class BatchSampleStatusOut(BaseModel):
+    id: str
+    status: str
+
+
+class BatchStatusOut(BaseModel):
+    total: int
+    queued: int
+    processing: int
+    completed: int
+    failed: int
+    needs_review: int
+    items: list[BatchSampleStatusOut]
+
+
 class FieldOut(BaseModel):
     id: str
     field_key: str

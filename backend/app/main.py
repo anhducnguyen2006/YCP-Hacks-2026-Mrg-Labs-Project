@@ -1,10 +1,13 @@
 """MRG Sample Scanner HTTP API backed by PostgreSQL and RQ."""
+import csv
+import io
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from redis import Redis
 from rq import Queue
 from sqlalchemy import select
@@ -14,7 +17,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia, uid
 from app.schemas import (
-    FIELD_KEYS, BatchCreate, BatchOut, FieldCorrection, SampleOut,
+    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut,
 )
 from app.store import batch_out, sample_out
 
@@ -57,6 +60,95 @@ def create_batch(payload: BatchCreate, db: Session = Depends(get_db)) -> BatchOu
     db.commit()
     db.refresh(batch)
     return batch_out(batch)
+
+
+
+# Keep the historical template spelling and column order exactly as specified.
+CSV_HEADERS = (
+    "Sample ID", "Date Sampled", "Date Received", "Machine",
+    "Component", "Serial Number", "Refrence Lube",
+)
+
+
+@app.get("/api/batches/{batch_id}/status", response_model=BatchStatusOut)
+def batch_status(batch_id: str, db: Session = Depends(get_db)) -> BatchStatusOut:
+    """One lightweight polling request for the whole batch, including per-video status."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    items = db.execute(
+        select(Sample.id, Sample.processing_status)
+        .where(Sample.batch_id == batch_id)
+        .order_by(Sample.created_at, Sample.id)
+    ).all()
+    counts = {status: 0 for status in ("queued", "processing", "completed", "failed")}
+    for _, status in items:
+        counts[status] = counts.get(status, 0) + 1
+    ids = [sample_id for sample_id, _ in items]
+    needs_review = 0
+    if ids:
+        needs_review = len(db.scalars(
+            select(SampleField.sample_id).where(
+                SampleField.sample_id.in_(ids),
+                SampleField.review_required.is_(True),
+                SampleField.reviewed.is_(False),
+            ).distinct()
+        ).all())
+    return BatchStatusOut(
+        total=len(items), queued=counts["queued"], processing=counts["processing"],
+        completed=counts["completed"], failed=counts["failed"],
+        needs_review=needs_review,
+        items=[BatchSampleStatusOut(id=sid, status=status) for sid, status in items],
+    )
+
+
+@app.get("/api/batches/{batch_id}/export.csv")
+def export_batch_csv(
+    batch_id: str, reviewed_only: bool = False, db: Session = Depends(get_db)
+) -> Response:
+    """Download all completed samples, not just the first paginated frontend page."""
+    batch = db.get(Batch, batch_id)
+    if batch is None:
+        raise HTTPException(404, "Batch not found.")
+    samples = db.scalars(
+        select(Sample).where(
+            Sample.batch_id == batch_id, Sample.processing_status == "completed"
+        ).order_by(Sample.created_at, Sample.id)
+    ).all()
+    ids = [sample.id for sample in samples]
+    fields_by_sample: dict[str, dict[str, SampleField]] = {sid: {} for sid in ids}
+    if ids:
+        for field in db.scalars(
+            select(SampleField).where(SampleField.sample_id.in_(ids))
+        ):
+            fields_by_sample[field.sample_id][field.field_key] = field
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\r\n")
+    writer.writerow(CSV_HEADERS)
+    for sample in samples:
+        fields = fields_by_sample[sample.id]
+        if reviewed_only and any(
+            field.review_required and not field.reviewed
+            for field in fields.values()
+        ):
+            continue
+        values = [
+            (fields.get(key).current_value if fields.get(key) else None) or ""
+            for key in FIELD_KEYS
+        ]
+        # Date Received is a property of the batch; Gemini must never supply it.
+        values[2] = batch.receiving_date
+        writer.writerow(values)
+    # Keep filename ASCII-only for a safe HTTP Content-Disposition value.
+    filename = re.sub(r"[^A-Za-z0-9._-]", "_", batch.default_export_filename)
+    if not filename.lower().endswith(".csv"):
+        filename = "mrg-samples.csv"
+    return Response(
+        content=output.getvalue(), media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @app.get("/api/batches/{batch_id}/samples", response_model=list[SampleOut])
