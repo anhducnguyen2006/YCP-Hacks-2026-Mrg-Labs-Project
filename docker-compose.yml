@@ -34,6 +34,12 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mrg}:${POSTGRES_PASSWORD:-mrg_local_dev}@postgres:5432/${POSTGRES_DB:-mrg_scanner}
       REDIS_URL: redis://redis:6379/0
       FRONTEND_ORIGINS: http://localhost:5173,http://frontend:5173
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_VIDEO_FPS: ${GEMINI_VIDEO_FPS:-}
+      MEDIA_ROOT: /data/media
+      MAX_VIDEO_DURATION_SECONDS: ${MAX_VIDEO_DURATION_SECONDS:-15}
+      MAX_VIDEO_SIZE_BYTES: ${MAX_VIDEO_SIZE_BYTES:-52428800}
     ports:
       - "8000:8000"
     depends_on:
@@ -41,6 +47,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - media_data:/data/media
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
   worker:
@@ -49,11 +57,17 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mrg}:${POSTGRES_PASSWORD:-mrg_local_dev}@postgres:5432/${POSTGRES_DB:-mrg_scanner}
       REDIS_URL: redis://redis:6379/0
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_VIDEO_FPS: ${GEMINI_VIDEO_FPS:-}
+      MEDIA_ROOT: /data/media
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - media_data:/data/media
     command: rq worker --url redis://redis:6379/0 mrg-scanner
 
   frontend:
@@ -69,3 +83,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  media_data:
