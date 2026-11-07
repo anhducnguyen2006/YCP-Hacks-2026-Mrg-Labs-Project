@@ -11,7 +11,6 @@ from app.config import get_settings
 from app.frame_selection import SelectedFrame
 from app.schemas import CompactExtraction
 
-
 PROMPT = """Read a laboratory sample label across these time-ordered frames of ONE rotating tube.
 Each frame may show a different section of the same cylindrical label. Combine evidence
 across images; do not concatenate unrelated characters. Do not guess unreadable handwriting.
