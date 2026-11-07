@@ -1,7 +1,12 @@
+import logging
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from redis import Redis
+from redis.exceptions import RedisError
+from rq.exceptions import NoSuchJobError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -14,6 +19,7 @@ from app.schemas import BatchCreate, BatchRead, BatchUpdate, SampleFieldUpdate, 
 from app.storage import SAFE_MIME_TYPES, safe_video_path, save_upload, validate_filename
 
 router = APIRouter(prefix="/api")
+logger = logging.getLogger(__name__)
 
 
 def sample_query():
@@ -100,6 +106,7 @@ async def upload_sample(batch_id: UUID, file: UploadFile = File(...), db: Sessio
     db.add(job)
     db.commit()
     db.refresh(sample)
+    logger.info("[UPLOAD] sample=%s video_saved=true path=%s", sample.id, path)
     return serialize_sample(db.scalars(sample_query().where(Sample.id == sample.id)).unique().one())
 
 
@@ -126,21 +133,50 @@ def analyze_sample(sample_id: UUID, db: Session = Depends(get_db)) -> SampleRead
     if not sample:
         raise HTTPException(404, "Sample not found.")
     job = max(sample.jobs, key=lambda item: item.queued_at, default=None)
-    if job is None or job.status not in {"queued", "failed"}:
-        raise HTTPException(409, "Sample is already being processed or has completed.")
+    if job is None:
+        raise HTTPException(409, "Sample has no processing job.")
+    if job.status == "processing":
+        started_at = job.started_at or job.queued_at
+        age_seconds = (datetime.now(UTC) - started_at).total_seconds()
+        if age_seconds < get_settings().processing_stale_seconds:
+            logger.info("[ANALYZE] sample=%s job=%s already_%s", sample.id, job.id, job.status)
+            return serialize_sample(sample)
+        job.status = "failed"
+        job.current_stage = "error"
+        job.error_message = "Previous processing attempt became stale; retrying."
+        sample.processing_status = "failed"
+    if job.status == "queued" and job.rq_job_id:
+        try:
+            from rq.job import Job
+
+            existing_rq_job = Job.fetch(job.rq_job_id, connection=Redis.from_url(get_settings().redis_url))
+            if existing_rq_job.get_status() in {"queued", "started", "deferred", "scheduled"}:
+                logger.info("[ANALYZE] sample=%s job=%s already_enqueued rq_job=%s", sample.id, job.id, job.rq_job_id)
+                return serialize_sample(sample)
+        except NoSuchJobError:
+            job.rq_job_id = None
+    if job.status == "completed":
+        return serialize_sample(sample)
     job.status, job.current_stage, job.error_message = "queued", "queued", None
     db.commit()
     try:
-        from redis import Redis
-        from rq import Queue, Retry
+        from rq import Queue
 
-        Queue("mrg-scanner", connection=Redis.from_url(get_settings().redis_url)).enqueue(
+        queue = Queue("mrg-scanner", connection=Redis.from_url(get_settings().redis_url))
+        rq_job = queue.enqueue(
             process_sample_job,
             str(job.id),
-            retry=Retry(max=2, interval=[10, 30]),
-            job_timeout=600,
+            job_timeout=300,
         )
-    except Exception as exc:
+        job.rq_job_id = rq_job.id
+        logger.info("[QUEUE] sample=%s job=%s rq_job=%s queue=%s enqueued", sample.id, job.id, rq_job.id, queue.name)
+    except (RedisError, NoSuchJobError, OSError) as exc:
+        logger.exception("[QUEUE] sample=%s job=%s enqueued=false", sample.id, job.id)
+        job.status = "failed"
+        job.current_stage = "error"
+        job.error_message = f"Unable to queue sample processing: {type(exc).__name__}"
+        sample.processing_status = "failed"
+        db.commit()
         raise HTTPException(503, "Unable to queue sample processing.") from exc
     return serialize_sample(sample)
 

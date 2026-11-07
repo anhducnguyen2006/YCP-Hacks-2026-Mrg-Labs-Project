@@ -22,7 +22,13 @@ MRG Sample Scanner is a local-first browser application for laboratory technicia
 5. The worker sends the original video to Gemini Files API, waits for processing, requests structured JSON, deletes the temporary remote upload, extracts a representative frame with FFmpeg, and persists fields.
 6. The frontend polls while processing, displays the original video/keyframe and all seven fields, and saves manual field corrections through `PATCH`.
 
-The Gemini adapter supports optional `GEMINI_VIDEO_FPS`; when set to `5` or `10`, it passes `VideoMetadata(fps=...)`. Empty/default configuration uses Gemini's default video sampling. The direct-video path remains primary; frame fallback is not silently substituted.
+The Gemini adapter supports the official `google-genai` Files API and `generateContent` direct-video path, plus a frame path. The frame path uses FFmpeg/ffprobe to honor container orientation, sample up to 12 chronological JPEGs at configurable timestamps, preserve up to 2048px width, and submit all images in one request. Temporary inference frames are cleaned up; a representative frame and sampled frames are retained in shared media storage for review. `GEMINI_VIDEO_FPS` is optional and is passed as `VideoMetadata(fps=...)` only for direct video.
+
+`GEMINI_INPUT_MODE` supports `video`, `frames`, and `auto`. The default is `frames` after controlled tests showed the configured provider returned 503 for direct video, one image, and ten-image requests. `auto` allocates one combined retry budget: it tries direct video first and uses only remaining attempts for frames after transient video failures. The Interactions API was tested once and returned HTTP 400 because this installed SDK's legacy Interactions schema is no longer supported; it is not used by the application.
+
+Provider recovery has one total inference budget (`GEMINI_MAX_ATTEMPTS`, default three) with exponential backoff and jitter capped by `GEMINI_MAX_RETRY_WAIT_SECONDS`. The SDK's internal HTTP retry count is explicitly set to one, so only the application owns retries. Only transient 429/500/502/503/504 responses are retried; permanent 400/401/403/404 failures are surfaced immediately. An explicitly configured `GEMINI_FALLBACK_MODEL` receives only the remaining budget after the primary model and is checked for `generateContent` support first. RQ does not retry the job, preventing multiplied Gemini calls. The successful model is recorded on `ProcessingJob.model_used`.
+
+Use `backend/scripts/test_gemini.py` for explicit, isolated `models`, `text`, and `video` diagnostics. These commands do not run automatically and do not depend on PostgreSQL, Redis, or FastAPI.
 
 ## Decisions and safeguards
 

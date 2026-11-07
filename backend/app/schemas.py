@@ -62,6 +62,8 @@ class ProcessingJobRead(BaseModel):
     status: str
     current_stage: str
     error_message: str | None
+    model_used: str | None
+    rq_job_id: str | None
     retry_count: int
     queued_at: datetime
     started_at: datetime | None

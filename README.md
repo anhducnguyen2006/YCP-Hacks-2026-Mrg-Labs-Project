@@ -67,6 +67,21 @@ pytest
 3. Open `http://localhost:5173`, create a batch, choose it on **Scan**, upload an MP4/MOV/WebM clip (2–3 seconds recommended), and click **Analyze with Gemini**.
 4. Wait for the worker status to complete. The original video, representative frame, detected label type, seven fields, and editable values will be shown.
 
+Run controlled provider diagnostics from the worker image:
+
+```bash
+docker compose run --rm worker python scripts/test_gemini.py models
+docker compose run --rm worker python scripts/test_gemini.py text
+docker compose run --rm -v "$(pwd)/test_video:/tmp/test_video:ro" worker \
+  python scripts/test_gemini.py frames /tmp/test_video/IMG_1880.MOV
+docker compose run --rm -v "$(pwd)/test_video:/tmp/test_video:ro" worker \
+  python scripts/test_gemini.py video /tmp/test_video/IMG_1880.MOV
+```
+
+`GEMINI_INPUT_MODE=frames` is the current default because the tested direct-video endpoint is provider-overloaded. It extracts up to 12 chronological, high-resolution JPEG frames and submits them in one multimodal request. Set `GEMINI_INPUT_MODE=video` to retain direct video, or `auto` to try direct video and then use the remaining retry budget for frames after transient video failures.
+
+The application uses a single bounded Gemini inference retry budget. A provider-side 503 is persisted as a failed processing job after that budget is exhausted; it is not reported as a successful extraction.
+
 The automated suite mocks Gemini and does not claim a real Gemini extraction. Inspect failures with `docker compose logs -f api worker`.
 
 See [docs/architecture.md](docs/architecture.md) for boundaries, data flow, and decisions.

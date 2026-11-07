@@ -33,3 +33,42 @@ def extract_keyframe(path: Path, output_path: Path) -> None:
         capture_output=True,
         check=True,
     )
+
+
+def extract_frames(
+    path: Path,
+    output_dir: Path,
+    frame_fps: float = 6,
+    max_frames: int = 12,
+) -> list[Path]:
+    metadata = inspect_video(path, max_duration_seconds=24 * 60 * 60)
+    duration = float(metadata["duration"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+    effective_fps = max(1.0, min(frame_fps, max_frames / max(duration, 0.1)))
+    output_pattern = output_dir / "frame-%03d.jpg"
+    vf = f"fps={effective_fps:.4f},scale='min(2048,iw)':-2"
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-autorotate",
+                "-i",
+                str(path),
+                "-vf",
+                vf,
+                "-frames:v",
+                str(max_frames),
+                "-q:v",
+                "2",
+                str(output_pattern),
+            ],
+            capture_output=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ValueError("Frame extraction requires ffmpeg and a readable video file.") from exc
+    frames = sorted(output_dir.glob("frame-*.jpg"))
+    if not frames:
+        raise ValueError("FFmpeg did not produce any video frames.")
+    return frames

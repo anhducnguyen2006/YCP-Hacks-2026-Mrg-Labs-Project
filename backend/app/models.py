@@ -81,6 +81,8 @@ class ProcessingJob(Base):
     status: Mapped[str] = mapped_column(String(20), default="queued")
     current_stage: Mapped[str] = mapped_column(String(50), default="queued")
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_used: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    rq_job_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     queued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
