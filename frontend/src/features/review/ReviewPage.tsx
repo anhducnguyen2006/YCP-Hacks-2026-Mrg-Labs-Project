@@ -9,6 +9,17 @@ import { FrameGallery } from "./FrameGallery";
 
 export const reviewColumns = sampleColumns;
 
+function fieldSignal(field: SampleField): { label: string; color: string } {
+  if (field.reviewed) return { label: "Human verified", color: "green" };
+  if (field.status === "unreadable" || /ambiguity/i.test(field.review_reason ?? "")) {
+    return { label: "Flagged reading", color: "red" };
+  }
+  if (field.review_required) {
+    return { label: field.status === "missing" ? "Missing · check" : "Verify reading", color: "yellow" };
+  }
+  return { label: field.status === "not_applicable" ? "Not applicable" : "No review needed", color: "gray" };
+}
+
 function needsReview(field: SampleField) {
   return field.review_required && !field.reviewed;
 }
@@ -21,7 +32,7 @@ function FieldCorrection({ sample, field, label, onSaved }: { sample: Sample; fi
   const confidence = field.confidence;
   return <>
     <Paper withBorder p="sm" radius="md" className={needsReview(field) ? "review-field review-field-warning" : "review-field"}>
-      <Group justify="space-between" align="flex-start"><Box><Text size="xs" fw={700} c="dimmed">{label}</Text><Text size="sm" mt={4} style={{ overflowWrap: "anywhere" }}>{field.current_value || "Blank"}</Text></Box><Badge size="xs" variant="light" color={needsReview(field) ? "yellow" : field.reviewed ? "green" : "gray"}>{needsReview(field) ? "Needs review" : field.reviewed ? "Reviewed" : "Extracted"}</Badge></Group>
+      <Group justify="space-between" align="flex-start"><Box><Text size="xs" fw={700} c="dimmed">{label}</Text><Text size="sm" mt={4} style={{ overflowWrap: "anywhere" }}>{field.current_value || "Blank"}</Text></Box><Badge size="xs" variant="light" color={fieldSignal(field).color}>{fieldSignal(field).label}</Badge></Group>
       <Group justify="space-between" mt="xs"><Text size="xs" c="dimmed">{confidence != null ? `Model confidence: ${Math.round(confidence * 100)}%` : "Confidence unavailable"}</Text><Button variant="subtle" size="compact-xs" color="green" onClick={() => { setValue(field.current_value ?? ""); save.reset(); setOpened(true); }}>Edit / verify</Button></Group>
     </Paper>
     <Modal opened={opened} onClose={close} title={`Verify ${label}`} centered closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending}>
@@ -43,12 +54,14 @@ export function ReviewPage() {
   const [selectedId, setSelectedId] = useState<string | null>(params.get("sample"));
   const [filter, setFilter] = useState<string | null>("all");
   const [saved, setSaved] = useState(false);
+  const [inspectorOpened, setInspectorOpened] = useState(Boolean(params.get("sample")));
   const client = useQueryClient();
   const batches = useQuery({ queryKey: ["batches"], queryFn: api.batches, retry: false });
   const samples = useQuery({ queryKey: ["review-samples", batchId, offset], queryFn: () => api.samples(batchId!, offset), enabled: Boolean(batchId), retry: false });
   const rows = samples.data ?? [];
   const visible = rows.filter((sample) => filter !== "needs-review" || sample.fields.some(needsReview));
   const selected = visible.find((sample) => sample.id === selectedId) ?? visible[0];
+  const openSample = (id: string) => { setSelectedId(id); setSaved(false); setInspectorOpened(true); };
   const onSaved = (sample: Sample) => {
     client.setQueryData<Sample[]>(["review-samples", batchId, offset], (previous) => previous?.map((item) => item.id === sample.id ? sample : item));
     void client.invalidateQueries({ queryKey: ["samples", batchId] });
@@ -56,13 +69,26 @@ export function ReviewPage() {
     setSaved(true);
   };
   return <Stack gap="xl" className="review-page"><Group justify="space-between"><Box><Text className="eyebrow">QUALITY CONTROL</Text><Title order={1} mt={6}>Review sample labels</Title><Text c="dimmed" mt="sm">Check the label. Correct the details. Keep your records accurate.</Text></Box><ThemeIcon color="green" variant="light" size={52} radius="lg"><ShieldCheck size={27} /></ThemeIcon></Group>
-    <Paper withBorder radius="lg" p="lg"><Group align="flex-end"><Select className="review-batch-select" label="Batch" placeholder="Choose a batch to review" data={(batches.data ?? []).map((batch) => ({ value: batch.id, label: batch.name }))} value={batchId} onChange={(value) => { setBatchId(value); setOffset(0); setSelectedId(null); setSaved(false); }} searchable disabled={batches.isLoading || batches.isError} /><Select label="Show" data={[{ value: "all", label: "All samples" }, { value: "needs-review", label: "Needs review" }]} value={filter} onChange={setFilter} /><Button variant="default" leftSection={<RefreshCw size={16} />} loading={samples.isFetching || batches.isFetching} onClick={() => { void batches.refetch(); if (batchId) void samples.refetch(); }}>Refresh</Button></Group></Paper>
+    <Paper withBorder radius="lg" p="lg"><Group align="flex-end"><Select className="review-batch-select" label="Batch" placeholder="Choose a batch to review" data={(batches.data ?? []).map((batch) => ({ value: batch.id, label: batch.name }))} value={batchId} onChange={(value) => { setBatchId(value); setOffset(0); setSelectedId(null); setInspectorOpened(false); setSaved(false); }} searchable disabled={batches.isLoading || batches.isError} /><Select label="Show" data={[{ value: "all", label: "All samples" }, { value: "needs-review", label: "Needs review" }]} value={filter} onChange={setFilter} /><Button variant="default" leftSection={<RefreshCw size={16} />} loading={samples.isFetching || batches.isFetching} onClick={() => { void batches.refetch(); if (batchId) void samples.refetch(); }}>Refresh</Button></Group></Paper>
     {batches.isLoading && <Group role="status"><Loader size="sm" color="green" /><Text>Loading batches…</Text></Group>}
     {batches.isError && <Alert color="red" icon={<AlertCircle size={18} />} title="Cannot connect to sample data">{batches.error.message}. Start the batch/sample API, then select Refresh. No sample data has been loaded.</Alert>}
     {!batches.isLoading && !batches.isError && !batchId && <Box className="empty-panel"><ThemeIcon size={56} radius="xl" variant="light" color="green"><FileSpreadsheet size={26} /></ThemeIcon><Title order={3} mt="lg">{batches.data?.length ? "Choose a batch to get started" : "No batches available yet"}</Title><Text c="dimmed" mt="sm" maw={470}>{batches.data?.length ? "Analyzed labels will appear as rows in the seven-column table." : "Create and analyze samples in the capture workflow, then return here to verify their data."}</Text></Box>}
     {samples.isLoading && batchId && <Group role="status"><Loader color="green" size="sm" /><Text>Loading sample records…</Text></Group>}
     {samples.isError && <Alert color="red" title="Unable to load samples">{samples.error.message}. Use Refresh to try again.</Alert>}
-    {batchId && samples.isSuccess && <><Paper withBorder radius="lg" className="review-table-panel"><Group justify="space-between" p="lg"><Box><Title order={3}>Sample records</Title><Text size="xs" c="dimmed" mt={4}>Seven columns in CSV order · Blank values stay empty · Select a Sample ID to inspect</Text></Box><Badge color="green" variant="light">{visible.length} shown</Badge></Group><Table.ScrollContainer minWidth={1000}><Table className="review-table" verticalSpacing="md" horizontalSpacing="lg"><Table.Thead><Table.Tr>{reviewColumns.map(({ key, label }) => <Table.Th key={key}>{label}</Table.Th>)}</Table.Tr></Table.Thead><Table.Tbody>{visible.map((sample) => <Table.Tr key={sample.id} data-selected={sample.id === selected?.id || undefined}>{reviewColumns.map(({ key }) => { const field = sample.fields.find((item) => item.field_key === key); const value = field?.current_value ?? ""; return <Table.Td key={key} className={field && needsReview(field) ? "review-cell-warning" : undefined}>{key === "sample_id" ? <Button variant="subtle" color="green" size="compact-sm" onClick={() => { setSelectedId(sample.id); setSaved(false); }}>{value || `Inspect ${sample.id.slice(0, 8)}`}</Button> : <span>{value}</span>}{field && needsReview(field) && <Text size="xs" c="#805500" mt={4}>Needs review</Text>}{!field && <Text size="xs" c="dimmed">Not extracted</Text>}</Table.Td>; })}</Table.Tr>)}</Table.Tbody></Table></Table.ScrollContainer>{!visible.length && <Text ta="center" c="dimmed" p="xl">{rows.length ? "No samples on this page need review." : "No sample records on this page yet."}</Text>}<Group justify="space-between" p="lg"><Text size="xs" c="dimmed">Page {offset / 50 + 1} · Up to 50 samples per page{filter === "needs-review" ? " · Filter applies to this page" : ""}</Text><Group><Button variant="default" size="xs" disabled={!offset || samples.isFetching} onClick={() => { setOffset(offset - 50); setSelectedId(null); }}>Previous</Button><Button variant="default" size="xs" disabled={rows.length < 50 || samples.isFetching} onClick={() => { setOffset(offset + 50); setSelectedId(null); }}>Next</Button></Group></Group></Paper>{saved && <Alert color="green" icon={<Check size={18} />} role="status">Field saved to the sample record.</Alert>}{selected && <SampleInspector key={selected.id} sample={selected} onSaved={onSaved} />}</>}
-    <Text size="xs" c="dimmed">Corrections are stored through the sample API. CSV download is not connected on this page yet.</Text>
+    {batchId && samples.isSuccess && <><Paper withBorder radius="lg" className="review-table-panel"><Group justify="space-between" p="lg"><Box><Title order={3}>Sample records</Title><Text size="xs" c="dimmed" mt={4}>Seven columns in CSV order · Blank values stay empty · Click a sample row to inspect</Text></Box><Badge color="green" variant="light">{visible.length} shown</Badge></Group><Table.ScrollContainer minWidth={1000}><Table className="review-table" verticalSpacing="md" horizontalSpacing="lg"><Table.Thead><Table.Tr>{reviewColumns.map(({ key, label }) => <Table.Th key={key}>{label}</Table.Th>)}</Table.Tr></Table.Thead><Table.Tbody>{visible.map((sample) => <Table.Tr key={sample.id} data-selected={sample.id === selected?.id || undefined} onClick={() => openSample(sample.id)} style={{ cursor: "pointer" }}>{reviewColumns.map(({ key }) => { const field = sample.fields.find((item) => item.field_key === key); const value = field?.current_value ?? ""; return <Table.Td key={key} className={field && needsReview(field) ? "review-cell-warning" : undefined}>{key === "sample_id" ? <Button variant="subtle" color="green" size="compact-sm" onClick={(event) => { event.stopPropagation(); openSample(sample.id); }}>{value || `Inspect ${sample.id.slice(0, 8)}`}</Button> : <span>{value}</span>}{field && needsReview(field) && <Text size="xs" c="#805500" mt={4}>Needs review</Text>}{!field && <Text size="xs" c="dimmed">Not extracted</Text>}</Table.Td>; })}</Table.Tr>)}</Table.Tbody></Table></Table.ScrollContainer>{!visible.length && <Text ta="center" c="dimmed" p="xl">{rows.length ? "No samples on this page need review." : "No sample records on this page yet."}</Text>}<Group justify="space-between" p="lg"><Text size="xs" c="dimmed">Page {offset / 50 + 1} · Up to 50 samples per page{filter === "needs-review" ? " · Filter applies to this page" : ""}</Text><Group><Button variant="default" size="xs" disabled={!offset || samples.isFetching} onClick={() => { setOffset(offset - 50); setSelectedId(null); }}>Previous</Button><Button variant="default" size="xs" disabled={rows.length < 50 || samples.isFetching} onClick={() => { setOffset(offset + 50); setSelectedId(null); }}>Next</Button></Group></Group></Paper>{saved && <Alert color="green" icon={<Check size={18} />} role="status">Field saved to the sample record.</Alert>}
+      <Modal opened={inspectorOpened && Boolean(selected)} onClose={() => setInspectorOpened(false)} title="Inspect sample label"
+        size="95%" centered scrollAreaComponent={undefined} styles={{ body: { padding: "0 8px 8px" } }}>
+        {selected && <Stack gap="md">
+          <Group gap="xs" px="md">
+            <Badge color="green" variant="light">Human verified</Badge>
+            <Badge color="yellow" variant="light">Verify reading</Badge>
+            <Badge color="red" variant="light">Model flagged ambiguity</Badge>
+            <Text size="xs" c="dimmed">These are review signals, not calibrated model confidence scores.</Text>
+          </Group>
+          <SampleInspector key={selected.id} sample={selected} onSaved={onSaved} />
+          {saved && <Alert mx="md" color="green" icon={<Check size={18} />}>Field saved to the sample record.</Alert>}
+        </Stack>}
+      </Modal></>}
+    <Text size="xs" c="dimmed">Corrections are stored through the sample API. Export current records from Templates & Export.</Text>
   </Stack>;
 }
