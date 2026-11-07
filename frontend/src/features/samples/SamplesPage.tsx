@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { Alert, Badge, Box, Button, Checkbox, Group, Loader, Modal, Paper, Select, Stack, Table, Text, TextInput, ThemeIcon, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, FlaskConical, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
@@ -23,10 +23,9 @@ const SORT_OPTIONS = [
 export function SamplesPage() {
   const client = useQueryClient();
   const [params, setParams] = useSearchParams();
-  const initialBatch = params.get("batch");
-  const initialSample = params.get("sample");
-  const [batchId, setBatchId] = useState<string | null>(initialBatch);
-  const [inspectedId, setInspectedId] = useState<string | null>(initialSample);
+  // URL params are the single source of truth: closing cannot be undone by an effect.
+  const batchId = params.get("batch");
+  const inspectedId = params.get("sample");
   const [inspected, setInspected] = useState<import("../../api").Sample | null>(null);
   const [editNotice, setEditNotice] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
@@ -62,25 +61,16 @@ export function SamplesPage() {
   });
   const currentDetail = inspected?.id === inspectedId ? inspected : detail.data;
   const openInspector = (sampleId: string) => {
-    setInspectedId(sampleId);
     setInspected(null);
     setEditNotice(null);
     setParams({ batch: batchId!, sample: sampleId });
   };
   const closeInspector = () => {
-    setInspectedId(null);
     setInspected(null);
     setEditNotice(null);
     if (batchId) setParams({ batch: batchId });
     else setParams({});
   };
-  useEffect(() => {
-    // Support historical links to a sample without requiring manual batch selection.
-    const requestedBatch = params.get("batch");
-    const requestedSample = params.get("sample");
-    if (requestedBatch && requestedBatch !== batchId) setBatchId(requestedBatch);
-    if (requestedSample && requestedSample !== inspectedId) setInspectedId(requestedSample);
-  }, [params, batchId, inspectedId]);
   const onFieldSaved = (updated: import("../../api").Sample) => {
     setInspected(updated);
     client.setQueryData(["sample", updated.id], updated);
@@ -92,6 +82,8 @@ export function SamplesPage() {
   const pageIds = rows.map((sample) => sample.id);
   const allOnPage = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
   const someOnPage = pageIds.some((id) => selectedIds.includes(id));
+  const selectPage = () =>
+    setSelectedIds((previous) => [...new Set([...previous, ...pageIds])]);
   const resetList = () => { setOffset(0); setSelectedIds([]); setNotice(null); };
   const toggleSelection = (id: string, checked: boolean) =>
     setSelectedIds((previous) => checked ? [...new Set([...previous, id])] : previous.filter((item) => item !== id));
@@ -122,7 +114,7 @@ export function SamplesPage() {
     <Paper withBorder radius="lg" p="lg">
       <Select label="Choose batch" searchable placeholder="Choose a batch to browse"
         data={(batches.data ?? []).map((batch) => ({ value: batch.id, label: batch.name }))}
-        value={batchId} onChange={(value) => { setBatchId(value); setInspectedId(null); setInspected(null); setParams(value ? { batch: value } : {}); resetList(); setSearch(""); }}
+        value={batchId} onChange={(value) => { setInspected(null); setParams(value ? { batch: value } : {}); resetList(); setSearch(""); }}
         disabled={batches.isLoading || batches.isError}
       />
       <Text size="xs" c="dimmed" mt="xs">The controls below search and sort records within this selected batch.</Text>
@@ -168,6 +160,8 @@ export function SamplesPage() {
           <Badge color="gray" variant="light">{total} matching</Badge>
         </Group>
         <Group>
+          {pageIds.length > 0 && <Button variant="default" size="xs"
+            disabled={allOnPage} onClick={selectPage}>Select all on page ({pageIds.length})</Button>}
           {selectedIds.length > 0 && <>
             <Text size="xs" c="dimmed">{selectedIds.length} selected</Text>
             <Button variant="default" size="xs" onClick={() => setSelectedIds([])}>Clear selection</Button>
@@ -177,8 +171,8 @@ export function SamplesPage() {
         </Group>
       </Group>
       <Box px="lg" pb="sm"><ConfidenceExplanation /></Box>
-      <Table.ScrollContainer minWidth={1450}>
-        <Table className="review-table" verticalSpacing="md" horizontalSpacing="lg">
+      <Table.ScrollContainer minWidth={1160}>
+        <Table className="review-table" verticalSpacing="sm" horizontalSpacing="xs">
           <Table.Thead><Table.Tr>
             <Table.Th>
               <Checkbox aria-label="Select all samples on this page" color="green"

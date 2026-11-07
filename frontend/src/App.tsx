@@ -1,17 +1,15 @@
 import { AppShell, Badge, Box, Burger, Button, Group, Modal, NavLink, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { FileSliders, FlaskConical, HelpCircle, House, ScanLine, Settings } from "lucide-react";
+import { FileSliders, FlaskConical, HelpCircle, ScanLine, Settings } from "lucide-react";
 import { NavLink as RouterLink, Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { ScanPage } from "./features/scan/ScanPage";
 import { SamplesPage } from "./features/samples/SamplesPage";
 import { TemplatesPage } from "./features/templates/TemplatesPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { WorkspaceSettingsProvider } from "./features/settings/WorkspaceSettings";
-import { HomePage } from "./features/batches/HomePage";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 
 const navigation = [
-  { label: "Home", icon: House, to: "/welcome" },
   { label: "Scan", icon: ScanLine, to: "/scan" },
   { label: "Samples", icon: FlaskConical, to: "/samples" },
   { label: "Export", icon: FileSliders, to: "/templates" },
@@ -25,16 +23,20 @@ function LegacyReviewRedirect() {
 }
 
 function Layout() {
-  const [opened, { toggle }] = useDisclosure();
+  const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] = useDisclosure(false);
+  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
   const [helpOpened, help] = useDisclosure(false);
   const location = useLocation();
   return (
-    <AppShell className="lab-shell" header={{ height: 80 }} navbar={{ width: 244, breakpoint: "sm", collapsed: { mobile: !opened } }} padding="xl">
+    <AppShell className="lab-shell" header={{ height: 80 }} navbar={{ width: 244, breakpoint: "sm", collapsed: { mobile: !mobileOpened, desktop: !desktopOpened } }} padding="xl">
       <AppShell.Header className="header">
         <Group h="100%" px="xl" justify="space-between">
           <Group gap="sm">
-            <Burger hiddenFrom="sm" opened={opened} onClick={toggle} size="sm" />
-            <UnstyledButton component={RouterLink} to="/welcome" className="brand">
+            <Burger hiddenFrom="sm" opened={mobileOpened} onClick={toggleMobile} size="sm"
+              aria-label="Toggle mobile navigation" />
+            <Burger visibleFrom="sm" opened={desktopOpened} onClick={toggleDesktop} size="sm"
+              aria-label="Toggle desktop navigation" />
+            <UnstyledButton component={RouterLink} to="/scan" className="brand">
               <span className="brand-logo-pair" role="img" aria-label="MRG Laboratories">
                 <img src="/mrg-laboratories.png" alt="" className="brand-logo brand-logo-light" />
                 <img src="/mrg-laboratories-dark-clean.svg" alt="" className="brand-logo brand-logo-dark" />
@@ -54,7 +56,7 @@ function Layout() {
         <Text className="nav-label">WORKSPACE</Text>
         <Stack gap={4}>
           {navigation.map(({ label, icon: Icon, to }) => (
-            <NavLink key={to} component={RouterLink} to={to} label={label} leftSection={<Icon size={18} strokeWidth={1.8} />} active={location.pathname === to} onClick={toggle} />
+            <NavLink key={to} component={RouterLink} to={to} label={label} leftSection={<Icon size={18} strokeWidth={1.8} />} active={location.pathname === to} onClick={closeMobile} />
           ))}
         </Stack>
         <Box mt="auto" className="nav-footer">
@@ -65,8 +67,7 @@ function Layout() {
       <AppShell.Main><Outlet /></AppShell.Main>
       <Modal opened={helpOpened} onClose={help.close} title="How to use Sample Scanner" centered size="lg">
         <Stack gap="md">
-          <Text size="sm"><strong>1. Scan:</strong> Create or select a batch and set its receiving date.
-            Drop rotation videos into the upload area, then choose Upload & analyze.</Text>
+          <Text size="sm"><strong>1. Scan:</strong> Choose or create a batch, then drop one or more rotation videos onto the upload area (or click it to browse). Choose Upload & analyze.</Text>
           <Text size="sm"><strong>2. Samples:</strong> Search, sort, and filter samples by confidence.
             Click a row to compare the original video and extracted frames, edit values, and verify readings.</Text>
           <Text size="sm"><strong>3. Export:</strong> Select a batch and download its completed records
@@ -83,7 +84,7 @@ function Layout() {
 export function App() {
   return <WorkspaceSettingsProvider><Routes><Route element={<Layout />}>
     <Route index element={<Navigate to="/scan" replace />} />
-    <Route path="welcome" element={<HomePage />} />
+    <Route path="welcome" element={<Navigate to="/scan" replace />} />
     <Route path="scan" element={<ScanPage />} />
     <Route path="samples" element={<SamplesPage />} />
     <Route path="review" element={<LegacyReviewRedirect />} />
