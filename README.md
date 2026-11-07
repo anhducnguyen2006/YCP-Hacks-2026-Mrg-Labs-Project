@@ -197,3 +197,19 @@ Choose a batch in Samples to search and sort across the full batch, filter by AI
 
 The default route opens **Scan**, where batch creation and sample intake already live. **Samples** combines batch-wide search, sorting, confidence filters, multi-selection and verification; clicking any row opens a video/frame gallery with inline field corrections. **Export** places the real CSV download first and keeps the blank template and label mapping as optional reference material. A header **Help** button describes the three-step workflow. Historical links to `/review?batch=...&sample=...` redirect to the Samples inspector without changing stored data.
 
+
+
+## Experimental latency profiling (feature branch only)
+
+Branch: perf/scan-latency-instrumentation. Measurement only: same selected frames, Gemini prompt, model, API calls, and database schema. Each successful or failed worker job prints a single MRG_TIMING JSON line with sample UUID, model, frame count, JPEG total size, and wall-clock millisecond durations. No API keys, label text, images, or extracted values are logged.
+
+Run representative scans, then summarize (Python standard library only):
+
+    docker compose logs --no-color --since=60m worker | python3 backend/app/timing_report.py
+
+Or save logs first:
+
+    docker compose logs --no-color worker > worker-timings.log
+    python3 backend/app/timing_report.py worker-timings.log
+
+The report separates successes from failures and lists p50/p90/min/max stage durations. API request timing includes network and server queueing, not just Gemini inference. Collect multiple successful samples to compare; quota failures are not useful for average successful latency. To remove profiling, switch to main and rebuild the worker. No migrations or data resets are involved.
