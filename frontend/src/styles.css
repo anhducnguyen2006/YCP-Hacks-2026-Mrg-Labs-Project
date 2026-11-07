@@ -1,5 +1,24 @@
 :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #172f35; background: #f7faf9; }
 body { margin: 0; min-width: 320px; }
+h1, h2, h3 { color: #102e51; letter-spacing: -.025em; }
+.mantine-AppShell-main { background: #f7faf9; }
+.home-page { max-width: 1240px; margin: 0 auto; }
+.welcome-panel { display: flex; align-items: center; gap: 32px; background: linear-gradient(115deg, #eef5ee, #f8fbfc 60%, #e7f1ec); border: 1px solid #e1ebe5; overflow: hidden; }
+.welcome-content { flex: 1; }
+.welcome-content h2 { font-size: clamp(28px, 3vw, 40px); line-height: 1.15; }
+.workflow-visual { display: flex; align-items: center; gap: 18px; padding: 20px 8px; color: #246331; }
+.label-preview { display: flex; flex-direction: column; gap: 14px; background: white; border: 1px solid #c5d7cb; border-radius: 14px; padding: 24px; width: 195px; transform: rotate(-5deg); box-shadow: 0 15px 35px #163e2420; color: #263e45; }
+.label-preview-top { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .08em; color: #387642; }
+.label-preview > span, .csv-preview span { font-size: 11px; color: #667c73; }
+.label-line { height: 6px; border-radius: 3px; background: #dce5df; }
+.label-line.short { width: 65%; }
+.barcode { height: 31px; background: repeating-linear-gradient(90deg, #263e45 0 2px, transparent 2px 5px, #263e45 5px 6px, transparent 6px 9px); }
+.csv-preview { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 23px 15px; border: 1px solid #b5d1bc; border-radius: 12px; background: #ffffffc9; }
+.batch-empty { min-height: 265px; justify-content: center; padding-top: 20px; }
+.capture-steps { padding-left: 22px; margin: 0; font-size: 14px; line-height: 1.7; }
+.capture-steps li + li { margin-top: 10px; }
+@media (max-width: 1100px) { .workflow-visual { display: none; } }
+@media (max-width: 600px) { .mantine-AppShell-main { padding: calc(var(--app-shell-header-offset, 0rem) + 18px) 16px 24px; } .welcome-panel { padding: 22px !important; } .home-page h1 { font-size: 27px; } }
 .header { background: rgba(255,255,255,.92); border-bottom: 1px solid #e6eeec; }
 .navbar { background: #fff; border-right: 1px solid #e6eeec; }
 .brand { display: flex; align-items: center; gap: 10px; color: #17383d; }

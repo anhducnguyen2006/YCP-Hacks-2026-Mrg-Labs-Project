@@ -2,6 +2,7 @@ import { AppShell, Badge, Box, Burger, Group, NavLink, Stack, Text, ThemeIcon, T
 import { useDisclosure } from "@mantine/hooks";
 import { Activity, FileSliders, FlaskConical, FolderKanban, ScanLine, Settings, ShieldCheck } from "lucide-react";
 import { NavLink as RouterLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { HomePage } from "./features/batches/HomePage";
 
 const navigation = [
   { label: "Batches", icon: FolderKanban, to: "/" },
@@ -66,7 +67,7 @@ function Layout() {
 
 export function App() {
   return <Routes><Route element={<Layout />}>
-    <Route index element={<Page eyebrow="BATCHES" title="Good morning, technician." description="Manage unfinished sample batches and keep your laboratory workflow moving." />} />
+    <Route index element={<HomePage />} />
     <Route path="scan" element={<Page eyebrow="CAPTURE" title="Scan a sample" description="Record or upload a rotating sample tube video for label reconstruction." />} />
     <Route path="samples" element={<Page eyebrow="SAMPLE INVENTORY" title="Samples" description="Inspect extracted fields, edit values, and select samples for export." />} />
     <Route path="review" element={<Page eyebrow="QUALITY CONTROL" title="Review queue" description="Resolve questionable extractions before they become part of your laboratory record." />} />
