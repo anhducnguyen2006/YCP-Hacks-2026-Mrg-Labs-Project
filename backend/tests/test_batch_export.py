@@ -63,7 +63,7 @@ def test_exports_all_completed_records_using_current_reviewed_values(client):
     rows = list(csv.reader(io.StringIO(result.text)))
     assert rows[0] == [
         "Sample ID", "Date Sampled", "Date Received", "Machine",
-        "Component", "Serial Number", "Refrence Lube",
+        "Component", "Serial Number", "Reference Lube",
     ]
     assert len(rows) == 56  # headers + every completed sample beyond the first 50
     assert rows[1][0] == "00000"  # preserve leading zeros

@@ -5,7 +5,7 @@ export const sampleColumns = [
   { key: "machine", label: "Machine" },
   { key: "component", label: "Component" },
   { key: "serial_number", label: "Serial Number" },
-  { key: "reference_lube", label: "Refrence Lube" },
+  { key: "reference_lube", label: "Reference Lube" },
 ] as const;
 
 export const labelMappings = {

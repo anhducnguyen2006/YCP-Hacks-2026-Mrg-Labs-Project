@@ -2,7 +2,7 @@
 
 MRG Sample Scanner digitizes short rotation videos of cylindrical laboratory sample labels.
 
-> This guide describes the updated `feat/researcher-workspace-simplification` branch. `main` does not yet contain all of that branch's features. Follow the branch-selection step below to run the researcher workspace described here.
+> This guide targets the current `main` branch and the Scan → Samples → Export researcher workflow.
 
 ## Current implementation
 
@@ -11,17 +11,19 @@ MRG Sample Scanner digitizes short rotation videos of cylindrical laboratory sam
 - Redis/RQ worker performs local frame extraction and sends up to eight selected images to Gemini in one request per sample.
 - Scan supports single-video upload/analysis **and** drag-and-drop multi-video intake (up to 800 videos, 50 MB each, two concurrent uploads). Bulk uploads automatically enqueue analysis. Keep the browser page open until upload requests finish; already queued analyses continue in the worker.
 - Samples: click a row to open the source video, all selected frame thumbnails, original/extracted values, and inline editable fields in a modal. The former Review page redirects to Samples for saved links.
-- Review signals: green = human verified, yellow = needs verification, red = Gemini flagged ambiguity, gray = not applicable or no review required. **These are workflow signals, not calibrated model confidence percentages.**
+- Confidence badges are sample-level Gemini assessments (high/medium/low), **not calibrated probabilities**. Field-level verification remains available in Samples.
 - Export: download real completed CSV records for a selected batch from the primary action card. A blank seven-column template and label mapping are available as secondary reference information.
 - Each newly analyzed sample receives a Gemini-reported **high / medium / low** overall visual-confidence rating and a short explanation from the same inference request. This is subjective and **not a calibrated accuracy probability**. Already analyzed samples retain a null/unrated value; no automatic reanalysis.
 - The Samples page now supports batch-wide search, sort, confidence/status filtering, page selection, and confirmed removal of inactive samples. Deletion removes database records and their local sample-media directory. It is irreversible.
 - Live camera scanning, reliable resumable browser uploads, and full 800-sample throughput/accuracy validation are **not yet implemented**.
 
-This branch remains an integration MVP, not a production-validated scanner. Verify all AI-read fields.
+This is an integration MVP, not a production-validated scanner. Verify all AI-read fields, especially handwritten dates.
 
 ## Setup (Windows / PowerShell)
 
-These instructions describe `feat/researcher-workspace-simplification`. Other branches, including `main`, may contain an older interface or backend. Select this branch in GitHub's branch dropdown when reading its files.
+On macOS/Linux, use equivalent shell commands (e.g. `cp .env.example .env` and `git pull --ff-only origin main`).
+
+These instructions target `main`. Feature branches may contain unmerged experimental changes.
 
 ### 1. Prerequisites
 
@@ -41,7 +43,7 @@ docker compose version
 For a new checkout, run these commands from the folder where you want to keep the project:
 
 ```powershell
-git clone --branch feat/researcher-workspace-simplification --single-branch https://github.com/anhducnguyen2006/YCP-Hacks-2026-Mrg-Labs-Project.git
+git clone --branch main --single-branch https://github.com/anhducnguyen2006/YCP-Hacks-2026-Mrg-Labs-Project.git
 cd YCP-Hacks-2026-Mrg-Labs-Project
 ```
 
@@ -51,11 +53,11 @@ For an existing checkout, open its folder in VS Code and open **Terminal → New
 cd D:\Downloads\MCP_Hackathon_MRG_Labs
 git status
 git fetch origin
-git switch feat/researcher-workspace-simplification
-git pull --ff-only origin feat/researcher-workspace-simplification
+git switch main
+git pull --ff-only origin main
 ```
 
-If the local branch does not exist, use `git switch --track origin/feat/researcher-workspace-simplification` instead. Preserve any local changes before switching; do not discard them to get past a Git warning. Confirm `git branch --show-current` prints `feat/researcher-workspace-simplification`.
+If the local branch does not exist, use `git switch --track origin/main` instead. Preserve local changes before switching. Confirm `git branch --show-current` prints `main`.
 
 ### 3. Create the private environment file
 
@@ -108,7 +110,7 @@ Use port **5173** for this Docker setup. Port **5174** was a separate developmen
 4. **Export:** select the batch and download its completed records. Enable **Export only samples with no outstanding field reviews** to omit completed records that still have flagged fields. With this option off, completed but unverified readings can be exported. The blank template is a separate reference download.
 5. For multiple videos, use Scan's bulk uploader and **Upload & analyze**. Bulk upload queues analysis automatically; keep the browser open until uploads finish. Start small before attempting large batches.
 
-The CSV has exactly seven headers in this order: `Sample ID`, `Date Sampled`, `Date Received`, `Machine`, `Component`, `Serial Number`, `Refrence Lube`. The final header intentionally matches the supplied template's spelling. Blank/inapplicable fields remain empty; identifiers remain strings.
+The CSV has exactly seven headers in this order: `Sample ID`, `Date Sampled`, `Date Received`, `Machine`, `Component`, `Serial Number`, `Reference Lube`. The final header is correctly spelled `Reference Lube` in the UI and exported CSV. Blank/inapplicable fields remain empty; identifiers remain strings.
 
 ### Stop, restart, and update
 
@@ -137,7 +139,7 @@ Records persist in the `postgres_data` volume, uploaded videos/frames in `sample
 | Old page or page cannot be reached | Confirm the branch, rebuild, check `docker compose ps`, and open `http://localhost:5173/` with a hard refresh. |
 | API unavailable / batch loading fails | Run `docker compose logs --tail=100 api` and check the health/batches endpoints above. |
 | Analysis stays queued | Check `docker compose ps` and `docker compose logs --tail=100 worker`; the worker and Redis must be running. |
-| Analysis fails with key, model, or quota errors | Check the private `.env` key and configured model/account quota. Run `docker compose up -d --build` after changing `.env`. Avoid repeatedly queuing failed analyses before resolving the cause. |
+| Analysis fails with key, model, or quota errors | Check the private `.env` key, model and project quota. Shell-exported `GEMINI_API_KEY` can override the `.env` value; `unset GEMINI_API_KEY` in Bash/zsh or `Remove-Item Env:GEMINI_API_KEY` in PowerShell if necessary. Recreate the worker after changing `.env`. HTTP 429 means a rate/quota limit, HTTP 503 temporary model-capacity trouble. Avoid repeatedly queuing failures. |
 
 Inspect recent service logs with `docker compose logs --tail=100 api worker`. Remove secrets and customer/sample data before sharing logs. Building and opening the UI does not itself test an actual Gemini analysis; verify a known sample separately.
 
@@ -174,7 +176,7 @@ Backend unit tests use synthetic images and do not call Gemini. A real end-to-en
 
 - `frontend/src/api.ts`: typed backend client; maintains the existing frontend API contract.
 - `frontend/src/features/scan/ScanPage.tsx`: upload and analysis flow.
-- `frontend/src/features/review/ReviewPage.tsx`: media inspection and manual review.
+- `frontend/src/features/samples/SampleInspector.tsx`: media inspection and inline sample review.
 - `backend/app/main.py`: HTTP and persistence boundary.
 - `backend/app/frame_selection.py`: OpenCV selection, local only.
 - `backend/app/gemini_frames.py`: one Gemini request with selected images.
@@ -184,6 +186,21 @@ Backend unit tests use synthetic images and do not call Gemini. A real end-to-en
 - `docker-compose.yml`: PostgreSQL, Redis, API, worker, and frontend.
 
 See `AGENTS.md` for the exact seven-column CSV field mapping.
+
+## Date extraction and verification
+
+Handwritten laboratory dates require special treatment: a model may correctly read the sample ID while misinterpreting the day, month or abbreviated year. For **newly processed samples**, the Gemini call now returns both a literal date transcription (`date_sampled_raw`) and an optional ISO candidate. The backend converts a clearly transcribed US `MM/DD/YY` date into `YYYY-MM-DD`, or uses an unambiguous four-digit year. A single trailing digit (e.g. `09/28/6`) is interpreted using the batch receiving year **only when the final digit matches**; this is provisional and flagged. Incomplete years containing question marks remain blank. No additional Gemini API request is made.
+
+If the literal transcription conflicts with Gemini's suggested ISO date, the sample is flagged and confidence is capped at low; shortened years are flagged at least medium. Dates more than five years before receipt are flagged, **not automatically replaced**. A missing raw date does not justify trusting a guessed ISO date, and impossible or post-receipt dates remain blank for review.
+
+The UI saves the model's literal date evidence and normalization notes in the **Date Sampled review reason**. Click a sample in **Samples** and choose **Edit / verify** for Date Sampled to see that evidence. These are guardrails, **not a guarantee that Gemini visually transcribed the date correctly**. Inspect the original video/keyframes, especially the Date area, before approving a sample. Historical scans remain unchanged: the new rules run only during new analysis. Do not bulk-convert 2016→2026 without checking the source.
+
+Observed benchmark examples (technician reference sheet versus earlier Gemini output):
+- Sample `125773`: `09/28/26` versus `2016-09-28`.
+- Sample `128245`: `10/05/26` versus `2016-10-05`.
+- Sample `125767`: `09/28/26` versus `2020-04-28`.
+
+These examples motivate systematic calibration; the screenshots alone are not a complete accuracy benchmark.
 
 ## Confidence interpretation
 

@@ -84,7 +84,7 @@ export function SampleInspector({ sample, onSaved }: {
         <FrameGallery frames={sample.media} />
         {video && <video key={video.id} className="review-video" controls preload="metadata"
           src={api.mediaUrl(video.id)} aria-label="Original sample rotation video" />}
-        <Text size="xs" c="dimmed">Large labels have no Serial Number; small labels have no Refrence Lube.
+        <Text size="xs" c="dimmed">Large labels have no Serial Number; small labels have no Reference Lube.
           Date Received always comes from the batch receiving date.</Text>
       </Stack>
       <Stack gap="xs">

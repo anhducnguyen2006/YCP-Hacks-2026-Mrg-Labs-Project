@@ -123,7 +123,7 @@ export function TemplatesPage() {
           <Text size="sm">Sample IDs and serial numbers are preserved as text, including leading zeros.</Text>
           <Text size="sm">Date Received always comes from the batch settings.</Text>
           <Text size="sm">Verify uncertain handwritten values inside Samples before exporting.</Text>
-          <Text size="sm">The column header “Refrence Lube” intentionally follows the laboratory template.</Text>
+          <Text size="sm">The column header “Reference Lube” intentionally follows the laboratory template.</Text>
         </Stack>
       </Paper>
     </SimpleGrid>

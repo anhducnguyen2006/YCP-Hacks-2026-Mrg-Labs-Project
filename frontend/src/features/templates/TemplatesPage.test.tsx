@@ -11,7 +11,7 @@ test("downloads only the seven required headers and switches label mappings", as
   vi.mocked(api.batches).mockResolvedValue([]);
   render(<MantineProvider><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><TemplatesPage /></QueryClientProvider></MantineProvider>);
   const download = screen.getByRole("link", { name: "Download blank CSV template" });
-  expect(decodeURIComponent(download.getAttribute("href")!.split(",").slice(1).join(","))).toBe("Sample ID,Date Sampled,Date Received,Machine,Component,Serial Number,Refrence Lube\r\n");
+  expect(decodeURIComponent(download.getAttribute("href")!.split(",").slice(1).join(","))).toBe("Sample ID,Date Sampled,Date Received,Machine,Component,Serial Number,Reference Lube\r\n");
   fireEvent.click(screen.getByRole("button", { name: /Label mapping reference/ }));
   expect(await screen.findByText("Equip ID")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("radio", { name: "Small sample" }));

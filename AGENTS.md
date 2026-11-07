@@ -20,13 +20,13 @@ The default CSV export has exactly these columns, in this order:
 4. `Machine`
 5. `Component`
 6. `Serial Number`
-7. `Refrence Lube`
+7. `Reference Lube`
 
-`Refrence Lube` is intentionally misspelled to match the supplied template. Internal Python/TypeScript names may use `reference_lube`.
+`Reference Lube` is the required display and CSV column spelling. Internal Python/TypeScript field key stays `reference_lube`, so existing persisted data is preserved.
 
-Large labels map `Sample ID` to barcode or printed barcode number, `Date Sampled` to Date, `Date Received` to the configurable batch receiving date, `Machine` to Equip ID, `Component` to Sample point, `Serial Number` to blank, and `Refrence Lube` to Ref Lube.
+Large labels map `Sample ID` to barcode or printed barcode number, `Date Sampled` to Date, `Date Received` to the configurable batch receiving date, `Machine` to Equip ID, `Component` to Sample point, `Serial Number` to blank, and `Reference Lube` to Ref Lube.
 
-Small labels map `Sample ID` to barcode or printed barcode number, `Date Sampled` to Date, `Date Received` to the configurable batch receiving date, `Machine` to RN, `Component` to the circled number plus circled GS/NGS, `Serial Number` to SN, and `Refrence Lube` to blank.
+Small labels map `Sample ID` to barcode or printed barcode number, `Date Sampled` to Date, `Date Received` to the configurable batch receiving date, `Machine` to RN, `Component` to the circled number plus circled GS/NGS, `Serial Number` to SN, and `Reference Lube` to blank.
 
 Blank or inapplicable values must export as empty strings, never `N/A`. IDs, machine identifiers, and serial numbers are strings, never integers.
 
@@ -45,3 +45,7 @@ Overall sample-level `ai_confidence` is a nullable, model-reported high/medium/l
 ## Current interface
 
 Navigation is intentionally researcher-focused: Scan, Samples, Export and Settings. The header Help button explains the workflow. The old Review route remains as a backwards-compatible redirect into Samples; do not add a duplicate Review or Batches navigation entry unless specifically requested. Sample review/edit is inline inside the Samples detail modal. Export prominently offers a real batch CSV download, with format and label mapping as secondary reference content.
+
+## Date extraction contract
+
+The Gemini response includes `date_sampled_raw` (literal visual evidence) and `date_sampled` (ISO candidate only if fully legible). The backend independently normalizes clear US month/day/year and four-digit ISO dates; shortened years are provisional, incomplete dates remain blank, and contradictory or implausible dates are flagged. Preserve the literal evidence in the Date Sampled field's review reason, cap overall AI confidence when evidence conflicts, and never silently rewrite existing manually verified samples. Do not infer dates from Sample ID, RN, the current clock, or a batch-wide pattern. Retain the `date_sampled` database field and `reference_lube` internal key for backwards compatibility.
