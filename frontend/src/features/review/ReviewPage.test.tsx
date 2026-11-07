@@ -27,7 +27,8 @@ test("shows seven CSV columns and persists a verified string identifier", async 
   fireEvent.click(screen.getByRole("button", { name: "00123" }));
   await screen.findByText("Inspect sample label");
   fireEvent.click(screen.getAllByRole("button", { name: "Edit / verify" })[0]);
-  const dialog = await screen.findByRole("dialog");
+  const dialogs = await screen.findAllByRole("dialog");
+  const dialog = dialogs[dialogs.length - 1];
   fireEvent.change(within(dialog).getByRole("textbox", { name: "Sample ID" }), { target: { value: "00042" } });
   fireEvent.click(within(dialog).getByRole("button", { name: "Save & verify field" }));
   await screen.findByText("Field saved to the sample record.");

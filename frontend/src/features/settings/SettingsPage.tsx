@@ -9,7 +9,9 @@ export function SettingsPage() {
   const { preferences, save } = useWorkspaceSettings();
   const [draft, setDraft] = useState(preferences);
   const [notice, setNotice] = useState<"saved" | "error" | null>(null);
-  const filenameError = !draft.exportFilename.trim() || !/^[^<>:"/\\|?*\x00-\x1f]+\.csv$/i.test(draft.exportFilename.trim()) ? "Enter a filename ending in .csv, without folder paths." : null;
+  const invalidFilename = (filename: string) =>
+    [...filename].some((char) => char.charCodeAt(0) < 32 || '<>:"/\\\\|?*'.includes(char));
+  const filenameError = !draft.exportFilename.trim() || invalidFilename(draft.exportFilename.trim()) || !/\\.csv$/i.test(draft.exportFilename.trim()) ? "Enter a filename ending in .csv, without folder paths." : null;
   const dirty = JSON.stringify(draft) !== JSON.stringify(preferences);
   const connection = useMutation({ mutationFn: async () => {
     const response = await fetch(`${api.baseUrl}/api/health`, { signal: AbortSignal.timeout(8000) });
