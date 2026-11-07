@@ -4,7 +4,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 FIELD_KEYS = (
     "sample_id",
     "date_sampled",

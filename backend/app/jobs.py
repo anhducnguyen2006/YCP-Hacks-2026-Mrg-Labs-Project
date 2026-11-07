@@ -1,5 +1,5 @@
 """Long-lived RQ task: decode -> choose frames -> one Gemini request -> persist."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -13,7 +13,7 @@ from app.schemas import FIELD_KEYS
 
 
 def _time() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _stage(job_id: str, sample_id: str, name: str) -> bool:

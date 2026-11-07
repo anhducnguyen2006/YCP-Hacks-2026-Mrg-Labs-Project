@@ -1,31 +1,41 @@
 """MRG Sample Scanner HTTP API backed by PostgreSQL and RQ."""
 import csv
-import logging
-from shutil import rmtree
 import io
+import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from shutil import rmtree
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from redis import Redis
 from rq import Queue
-from rq.job import Job
 from rq.exceptions import NoSuchJobError
-from sqlalchemy import select, func, or_, exists, case
+from rq.job import Job
+from sqlalchemy import case, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia, uid
+from app.quality import batch_quality
 from app.schemas import (
-    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut, InventoryOut, SampleDeleteRequest, SelectiveExportRequest,
+    FIELD_KEYS,
+    BatchCreate,
+    BatchOut,
+    BatchSampleStatusOut,
+    BatchStatusOut,
+    FieldCorrection,
+    InventoryOut,
+    SampleDeleteRequest,
+    SampleOut,
+    SelectiveExportRequest,
 )
 from app.store import batch_out, sample_out
-from app.quality import batch_quality
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 app = FastAPI(title="MRG Sample Scanner API", version="0.2.0")
 app.add_middleware(
@@ -42,7 +52,7 @@ MAX_UPLOAD = 50 * 1024 * 1024
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @app.get("/api/health")
@@ -389,7 +399,7 @@ def delete_selected_samples(
             try:
                 rmtree(folder)
             except OSError:
-                logging.exception("Could not clean saved media for deleted sample %s", sid)
+                logger.exception("Could not clean saved media for deleted sample %s", sid)
     return {"deleted": len(ids)}
 
 
@@ -423,7 +433,7 @@ async def upload_sample(
         ))
         db.commit()
         return sample_out(db, sample)
-    except Exception:
+    except Exception:  # noqa: BLE001 - rollback must also cover unexpected I/O failures
         output.unlink(missing_ok=True)
         db.rollback()
         raise
@@ -458,7 +468,7 @@ def analyze_sample(sample_id: str, db: Session = Depends(get_db)) -> SampleOut:
             job_timeout=300, result_ttl=3600,
             job_id=job.id,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 - queue failures must restore consistent database state
         job.status = "failed"
         job.current_stage = "failed"
         job.error_message = "Unable to queue analysis. Check Redis and worker status."
