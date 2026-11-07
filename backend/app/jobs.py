@@ -16,24 +16,28 @@ def _time() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _stage(job_id: str, sample_id: str, name: str) -> None:
+def _stage(job_id: str, sample_id: str, name: str) -> bool:
     with SessionLocal() as db:
         job = db.get(ProcessingJob, job_id)
         sample = db.get(Sample, sample_id)
         if not job or not sample:
             raise ValueError("Processing job or sample no longer exists.")
+        if job.status == "canceled":
+            return False
         job.status = "processing"
         job.current_stage = name
         sample.processing_status = "processing"
         sample.updated_at = _time()
         db.commit()
+        return True
 
 
 def process_sample(sample_id: str, job_id: str) -> None:
     settings = get_settings()
     root = Path(settings.media_root).resolve()
     try:
-        _stage(job_id, sample_id, "extracting_frames")
+        if not _stage(job_id, sample_id, "extracting_frames"):
+            return
         with SessionLocal() as db:
             video = db.scalars(
                 select(SampleMedia).where(

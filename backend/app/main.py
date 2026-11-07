@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from redis import Redis
 from rq import Queue
+from rq.job import Job
+from rq.exceptions import NoSuchJobError
 from sqlalchemy import select, func, or_, exists, case
 from sqlalchemy.orm import Session
 
@@ -91,7 +93,7 @@ def batch_status(batch_id: str, db: Session = Depends(get_db)) -> BatchStatusOut
         .where(Sample.batch_id == batch_id)
         .order_by(Sample.created_at, Sample.id)
     ).all()
-    counts = {status: 0 for status in ("queued", "processing", "completed", "failed")}
+    counts = {status: 0 for status in ("queued", "processing", "completed", "failed", "canceled")}
     for _, status in items:
         counts[status] = counts.get(status, 0) + 1
     needs_review = db.scalar(
@@ -104,6 +106,7 @@ def batch_status(batch_id: str, db: Session = Depends(get_db)) -> BatchStatusOut
     return BatchStatusOut(
         total=len(items), queued=counts["queued"], processing=counts["processing"],
         completed=counts["completed"], failed=counts["failed"],
+        canceled=counts["canceled"],
         needs_review=needs_review,
         items=[BatchSampleStatusOut(id=sid, status=status) for sid, status in items],
     )
@@ -310,6 +313,44 @@ def inventory(
     ).offset(offset).limit(limit)
     return InventoryOut(total=total, items=[sample_out(db, s) for s in db.scalars(stmt)])
 
+
+
+@app.post("/api/batches/{batch_id}/cancel-queued")
+def cancel_queued_jobs(batch_id: str, db: Session = Depends(get_db)) -> dict[str, int]:
+    """Cancel only RQ jobs that have not started; never interrupt active Gemini calls."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    redis = Redis.from_url(settings.redis_url)
+    jobs = db.scalars(select(ProcessingJob).join(
+        Sample, ProcessingJob.sample_id == Sample.id,
+    ).where(
+        Sample.batch_id == batch_id,
+        ProcessingJob.status == "queued",
+    ).with_for_update()).all()
+    cancelled = 0
+    for job in jobs:
+        sample = db.get(Sample, job.sample_id)
+        if sample is None or sample.processing_status != "queued":
+            continue
+        try:
+            rq_job = Job.fetch(job.id, connection=redis)
+            if rq_job.get_status(refresh=True) != "queued":
+                continue
+            rq_job.cancel()
+        except NoSuchJobError:
+            # The task may have left the queue; do not mark SQL as canceled
+            # without knowing whether it could still execute.
+            continue
+        except Exception as exc:
+            raise HTTPException(503, "Could not contact the processing queue.") from exc
+        job.status = "canceled"
+        job.current_stage = "canceled"
+        job.error_message = None
+        sample.processing_status = "canceled"
+        sample.updated_at = _now()
+        cancelled += 1
+    db.commit()
+    return {"canceled": cancelled}
 
 
 @app.post("/api/batches/{batch_id}/samples/delete")
