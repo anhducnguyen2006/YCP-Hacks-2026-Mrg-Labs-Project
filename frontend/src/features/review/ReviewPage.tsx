@@ -10,17 +10,6 @@ import { FrameGallery } from "./FrameGallery";
 
 export const reviewColumns = sampleColumns;
 
-function fieldSignal(field: SampleField): { label: string; color: string } {
-  if (field.reviewed) return { label: "Human verified", color: "green" };
-  if (field.status === "unreadable" || /ambiguity/i.test(field.review_reason ?? "")) {
-    return { label: "Flagged reading", color: "red" };
-  }
-  if (field.review_required) {
-    return { label: field.status === "missing" ? "Missing · check" : "Verify reading", color: "yellow" };
-  }
-  return { label: field.status === "not_applicable" ? "Not applicable" : "No review needed", color: "gray" };
-}
-
 function needsReview(field: SampleField) {
   return field.review_required && !field.reviewed;
 }
@@ -30,11 +19,10 @@ function FieldCorrection({ sample, field, label, onSaved }: { sample: Sample; fi
   const [opened, setOpened] = useState(false);
   const save = useMutation({ mutationFn: () => api.updateField(sample.id, field.field_key, value), onSuccess: (updated) => { onSaved(updated); setOpened(false); } });
   const close = () => { if (!save.isPending) setOpened(false); };
-  const confidence = field.confidence;
   return <>
     <Paper withBorder p="sm" radius="md" className="review-field">
-      <Group justify="space-between" align="flex-start"><Box><Text size="xs" fw={700} c="dimmed">{label}</Text><Text size="sm" mt={4} style={{ overflowWrap: "anywhere" }}>{field.current_value || "Blank"}</Text></Box><Badge size="xs" variant="light" color={fieldSignal(field).color}>{fieldSignal(field).label}</Badge></Group>
-      <Group justify="space-between" mt="xs"><Text size="xs" c="dimmed">{confidence != null ? `Model confidence: ${Math.round(confidence * 100)}%` : "Confidence unavailable"}</Text><Button variant="subtle" size="compact-xs" color="green" onClick={() => { setValue(field.current_value ?? ""); save.reset(); setOpened(true); }}>Edit / verify</Button></Group>
+      <Group justify="space-between" align="flex-start"><Box><Text size="xs" fw={700} c="dimmed">{label}</Text><Text size="sm" mt={4} style={{ overflowWrap: "anywhere" }}>{field.current_value || "Blank"}</Text></Box></Group>
+      <Group justify="space-between" mt="xs"><Text size="xs" c="dimmed">{field.reviewed ? "Verified by reviewer" : field.review_required ? "Verification pending" : "No review required"}</Text><Button variant="subtle" size="compact-xs" color="green" onClick={() => { setValue(field.current_value ?? ""); save.reset(); setOpened(true); }}>Edit / verify</Button></Group>
     </Paper>
     <Modal opened={opened} onClose={close} title={`Verify ${label}`} centered closeOnClickOutside={false} closeOnEscape={!save.isPending} withCloseButton={!save.isPending}>
       <Stack><Text size="sm" c="dimmed">Check the label image before saving. Saving marks this field as human-reviewed.</Text><Text size="sm">Original extraction: {field.predicted_value || "Blank"}</Text>{field.review_reason && <Alert color="yellow">{field.review_reason}</Alert>}<TextInput label={label} description="Leave empty if the label is blank or the field does not apply." value={value} onChange={(event) => setValue(event.currentTarget.value)} autoFocus />{save.isError && <Alert color="red" role="alert">Unable to save. Your edit is still here. {save.error.message}</Alert>}<Group justify="flex-end"><Button variant="default" onClick={close} disabled={save.isPending}>Cancel</Button><Button color="green" leftSection={<Check size={16} />} loading={save.isPending} onClick={() => save.mutate()}>Save & verify field</Button></Group></Stack>
@@ -61,12 +49,20 @@ export function ReviewPage() {
   const samples = useQuery({ queryKey: ["review-samples", batchId, offset], queryFn: () => api.samples(batchId!, offset), enabled: Boolean(batchId), retry: false });
   const rows = samples.data ?? [];
   const visible = rows.filter((sample) => filter !== "needs-review" || sample.fields.some(needsReview));
-  const selected = visible.find((sample) => sample.id === selectedId) ?? visible[0];
+  const selectedInPage = selectedId ? visible.find((sample) => sample.id === selectedId) : undefined;
+  const requestedSample = useQuery({
+    queryKey: ["sample", selectedId],
+    queryFn: () => api.sample(selectedId!),
+    enabled: Boolean(selectedId) && !selectedInPage && samples.isSuccess,
+    retry: false,
+  });
+  const selected = selectedInPage ?? (selectedId ? requestedSample.data : visible[0]);
   const openSample = (id: string) => { setSelectedId(id); setSaved(false); setInspectorOpened(true); };
   const onSaved = (sample: Sample) => {
     client.setQueryData<Sample[]>(["review-samples", batchId, offset], (previous) => previous?.map((item) => item.id === sample.id ? sample : item));
     void client.invalidateQueries({ queryKey: ["samples", batchId] });
-    void client.invalidateQueries({ queryKey: ["sample", sample.id] });
+    client.setQueryData(["sample", sample.id], sample);
+    void client.invalidateQueries({ queryKey: ["inventory", batchId] });
     setSaved(true);
   };
   return <Stack gap="xl" className="review-page"><Group justify="space-between"><Box><Text className="eyebrow">QUALITY CONTROL</Text><Title order={1} mt={6}>Review sample labels</Title><Text c="dimmed" mt="sm">Check the label. Correct the details. Keep your records accurate.</Text></Box><ThemeIcon color="green" variant="light" size={52} radius="lg"><ShieldCheck size={27} /></ThemeIcon></Group>
@@ -86,7 +82,8 @@ export function ReviewPage() {
           <SampleInspector key={selected.id} sample={selected} onSaved={onSaved} />
           {saved && <Alert mx="md" color="green" icon={<Check size={18} />}>Field saved to the sample record.</Alert>}
         </Stack>}
-      </Modal></>}
+      </Modal>
+      {inspectorOpened && selectedId && requestedSample.isError && <Alert color="red">Could not load the selected sample: {requestedSample.error.message}</Alert>}</>}
     <Text size="xs" c="dimmed">Corrections are stored through the sample API. Export current records from Templates & Export.</Text>
   </Stack>;
 }

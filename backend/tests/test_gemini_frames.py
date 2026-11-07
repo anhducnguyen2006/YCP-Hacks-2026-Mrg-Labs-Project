@@ -16,6 +16,8 @@ def test_small_label_contract_preserves_identifiers():
         "reference_lube": None,
         "uncertain_fields": ["serial_number"],
         "unreadable_fields": [],
+        "overall_confidence": "medium",
+        "confidence_reason": "The handwritten serial number is visually ambiguous.",
     })
     assert value.sample_id == "00125767"
     assert value.serial_number == "My1207238"
