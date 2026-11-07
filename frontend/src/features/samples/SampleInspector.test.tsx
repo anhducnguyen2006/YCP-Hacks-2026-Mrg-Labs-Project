@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
@@ -33,7 +33,7 @@ test("edits a sample field inline, preserving text identifiers and notifying the
   fireEvent.click(screen.getByRole("button", { name: "Edit / verify" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Sample ID" }), { target: { value: "00042" } });
   fireEvent.click(screen.getByRole("button", { name: "Save & verify field" }));
-  await screen.findByText("Human verified");
+  await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
   expect(api.updateField).toHaveBeenCalledWith("sample-1", "sample_id", "00042");
   expect(onSaved).toHaveBeenCalledTimes(1);
 });

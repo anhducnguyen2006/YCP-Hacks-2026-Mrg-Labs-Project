@@ -1,9 +1,7 @@
-import { AppShell, Badge, Box, Burger, Group, NavLink, Stack, Text, UnstyledButton } from "@mantine/core";
+import { AppShell, Badge, Box, Burger, Button, Group, Modal, NavLink, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { FileSliders, FlaskConical, FolderKanban, ScanLine, Settings, ShieldCheck } from "lucide-react";
-import { NavLink as RouterLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { HomePage } from "./features/batches/HomePage";
-import { ReviewPage } from "./features/review/ReviewPage";
+import { FileSliders, FlaskConical, HelpCircle, ScanLine, Settings } from "lucide-react";
+import { NavLink as RouterLink, Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { ScanPage } from "./features/scan/ScanPage";
 import { SamplesPage } from "./features/samples/SamplesPage";
 import { TemplatesPage } from "./features/templates/TemplatesPage";
@@ -11,16 +9,21 @@ import { SettingsPage } from "./features/settings/SettingsPage";
 import { WorkspaceSettingsProvider } from "./features/settings/WorkspaceSettings";
 
 const navigation = [
-  { label: "Batches", icon: FolderKanban, to: "/" },
   { label: "Scan", icon: ScanLine, to: "/scan" },
   { label: "Samples", icon: FlaskConical, to: "/samples" },
-  { label: "Review", icon: ShieldCheck, to: "/review" },
-  { label: "Templates & Export", icon: FileSliders, to: "/templates" },
+  { label: "Export", icon: FileSliders, to: "/templates" },
   { label: "Settings", icon: Settings, to: "/settings" },
 ];
 
+function LegacyReviewRedirect() {
+  const [params] = useSearchParams();
+  const query = params.toString();
+  return <Navigate to={"/samples" + (query ? "?" + query : "")} replace />;
+}
+
 function Layout() {
   const [opened, { toggle }] = useDisclosure();
+  const [helpOpened, help] = useDisclosure(false);
   const location = useLocation();
   return (
     <AppShell header={{ height: 72 }} navbar={{ width: 260, breakpoint: "sm", collapsed: { mobile: !opened } }} padding="xl">
@@ -33,7 +36,11 @@ function Layout() {
               <Text className="brand-app-name" fw={700}>Sample Scanner</Text>
             </UnstyledButton>
           </Group>
-          <Badge color="teal" variant="light" leftSection={<span className="status-dot" />}>Local workspace</Badge>
+          <Group gap="sm">
+            <Button variant="subtle" color="gray" size="sm" leftSection={<HelpCircle size={18} />}
+              onClick={help.open} aria-label="How to use Sample Scanner">Help</Button>
+            <Badge color="teal" variant="light" leftSection={<span className="status-dot" />}>Local workspace</Badge>
+          </Group>
         </Group>
       </AppShell.Header>
       <AppShell.Navbar p="md" className="navbar">
@@ -49,16 +56,29 @@ function Layout() {
         </Box>
       </AppShell.Navbar>
       <AppShell.Main><Outlet /></AppShell.Main>
+      <Modal opened={helpOpened} onClose={help.close} title="How to use Sample Scanner" centered size="lg">
+        <Stack gap="md">
+          <Text size="sm"><strong>1. Scan:</strong> Create or select a batch and set its receiving date.
+            Drop rotation videos into the upload area, then choose Upload & analyze.</Text>
+          <Text size="sm"><strong>2. Samples:</strong> Search, sort, and filter samples by confidence.
+            Click a row to compare the original video and extracted frames, edit values, and verify readings.</Text>
+          <Text size="sm"><strong>3. Export:</strong> Select a batch and download its completed records
+            using the required seven-column CSV format.</Text>
+          <Text size="xs" c="dimmed">AI confidence is a subjective reading assessment, not a measured probability.
+            Verify uncertain handwritten values against the source recording.</Text>
+          <Button color="green" onClick={help.close}>Got it</Button>
+        </Stack>
+      </Modal>
     </AppShell>
   );
 }
 
 export function App() {
   return <WorkspaceSettingsProvider><Routes><Route element={<Layout />}>
-    <Route index element={<HomePage />} />
+    <Route index element={<Navigate to="/scan" replace />} />
     <Route path="scan" element={<ScanPage />} />
     <Route path="samples" element={<SamplesPage />} />
-    <Route path="review" element={<ReviewPage />} />
+    <Route path="review" element={<LegacyReviewRedirect />} />
     <Route path="templates" element={<TemplatesPage />} />
     <Route path="settings" element={<SettingsPage />} />
   </Route></Routes></WorkspaceSettingsProvider>;
