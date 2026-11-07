@@ -1,5 +1,7 @@
 """MRG Sample Scanner HTTP API backed by PostgreSQL and RQ."""
 import csv
+import logging
+from shutil import rmtree
 import io
 import re
 from datetime import datetime, timezone
@@ -10,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from redis import Redis
 from rq import Queue
-from sqlalchemy import select, func, or_, exists
+from sqlalchemy import select, func, or_, exists, case
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -213,7 +215,12 @@ def inventory(
             SampleField.sample_id == Sample.id, SampleField.field_key == sort_by
         ).correlate(Sample).scalar_subquery()
     elif sort_by == "confidence":
-        key = Sample.ai_confidence
+        key = case(
+            (Sample.ai_confidence == "high", 3),
+            (Sample.ai_confidence == "medium", 2),
+            (Sample.ai_confidence == "low", 1),
+            else_=0,
+        )
     else:
         key = Sample.created_at
     stmt = stmt.order_by(
@@ -254,6 +261,14 @@ def delete_selected_samples(
     for record in samples:
         db.delete(record)
     db.commit()
+    root = Path(settings.media_root).resolve()
+    for sid in ids:
+        folder = (root / sid).resolve()
+        if folder.parent == root and folder.is_dir():
+            try:
+                rmtree(folder)
+            except OSError:
+                logging.exception("Could not clean saved media for deleted sample %s", sid)
     return {"deleted": len(ids)}
 
 

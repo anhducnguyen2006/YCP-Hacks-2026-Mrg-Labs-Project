@@ -182,8 +182,8 @@ export function SamplesPage() {
       title="Delete selected samples?" centered closeOnEscape={!removal.isPending}
       closeOnClickOutside={!removal.isPending} withCloseButton={!removal.isPending}>
       <Stack gap="md">
-        <Alert color="red">This permanently removes {selectedIds.length} selected record(s) and their database metadata. This action cannot be undone.</Alert>
-        <Text size="sm" c="dimmed">Samples with active or queued analysis jobs cannot be deleted. Source media cleanup will be handled separately.</Text>
+        <Alert color="red">This permanently removes {selectedIds.length} selected record(s), including associated saved media. This action cannot be undone.</Alert>
+        <Text size="sm" c="dimmed">Samples with active or queued analysis jobs cannot be deleted. Deletion does not remove records from any CSV files that were already downloaded.</Text>
         {removal.isError && <Alert color="red">{removal.error.message}</Alert>}
         <Group justify="flex-end">
           <Button variant="default" disabled={removal.isPending} onClick={() => setConfirmOpen(false)}>Cancel</Button>
