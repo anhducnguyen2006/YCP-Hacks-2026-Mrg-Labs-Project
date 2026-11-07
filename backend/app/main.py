@@ -65,10 +65,10 @@ def create_batch(payload: BatchCreate, db: Session = Depends(get_db)) -> BatchOu
 
 
 
-# Keep the historical template spelling and column order exactly as specified.
+# Seven-column export contract. Internal field key remains reference_lube.
 CSV_HEADERS = (
     "Sample ID", "Date Sampled", "Date Received", "Machine",
-    "Component", "Serial Number", "Refrence Lube",
+    "Component", "Serial Number", "Reference Lube",
 )
 
 

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db import SessionLocal
 from app.frame_selection import select_frames
+from app.date_reading import resolve_sampled_date
 from app.gemini_frames import GeminiRateLimitError, GeminiUnavailableError, analyze_selected_frames
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia
 from app.schemas import FIELD_KEYS
@@ -91,6 +92,21 @@ def process_sample(sample_id: str, job_id: str) -> None:
                 )
             }
             raw_values = extraction.model_dump()
+            date_decision = resolve_sampled_date(
+                extraction.date_sampled_raw,
+                extraction.date_sampled,
+                batch.receiving_date,
+            )
+            raw_values["date_sampled"] = date_decision.value
+            # Overall confidence is a subjective MODEL rating. Apply a
+            # deterministic cap when date evidence contradicts it.
+            if date_decision.confidence_cap:
+                confidence_rank = {"low": 0, "medium": 1, "high": 2}
+                if confidence_rank[date_decision.confidence_cap] < confidence_rank[sample.ai_confidence]:
+                    sample.ai_confidence = date_decision.confidence_cap
+                    sample.ai_confidence_reason = (
+                        f"{sample.ai_confidence_reason} Date check: {date_decision.note}"
+                    )
             for key in FIELD_KEYS:
                 forced_empty = (
                     (extraction.label_type == "small" and key == "reference_lube")
@@ -101,6 +117,8 @@ def process_sample(sample_id: str, job_id: str) -> None:
                     value = None
                 is_unreadable = key in extraction.unreadable_fields
                 is_uncertain = key in extraction.uncertain_fields
+                if key == "date_sampled" and date_decision.confidence_cap:
+                    is_uncertain = True
                 status = (
                     "not_applicable" if forced_empty else
                     "unreadable" if is_unreadable else
@@ -109,7 +127,8 @@ def process_sample(sample_id: str, job_id: str) -> None:
                 required = key not in ("date_received",) and not forced_empty
                 review = required
                 reason = (
-                    "Handwriting/visual ambiguity reported by Gemini"
+                    date_decision.note if key == "date_sampled"
+                    else "Handwriting/visual ambiguity reported by Gemini"
                     if is_uncertain or is_unreadable
                     else "Human verification required before accepting an AI reading"
                     if review else None

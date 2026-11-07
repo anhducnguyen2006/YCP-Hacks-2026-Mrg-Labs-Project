@@ -21,9 +21,22 @@ Sample point=component, Ref Lube=reference_lube; serial_number=null.
 Small: barcode=sample_id, Date=date_sampled, RN=machine, SN=serial_number,
 component is the CIRCLED number (1-6) and CIRCLED GS or NGS; reference_lube=null.
 Date Received is supplied by the batch and MUST NOT be inferred or returned.
-label_type must be small, large, or unknown. Dates: YYYY-MM-DD when unambiguous.
-Pay particular attention to visually similar handwritten 3/8, 6/8, 2/7.
-If uncertain, mark the corresponding field for manual review.
+label_type must be small, large, or unknown.
+DATE TRANSCRIPTION IS A SEPARATE TASK FROM DATE INTERPRETATION:
+1) date_sampled_raw MUST be an exact transcription of the characters visibly
+written in the Date box. Preserve separators and incomplete years (e.g.
+09/28/6 or 09/28/??). Use null if the date box is illegible or absent.
+Never silently complete a year in date_sampled_raw.
+2) date_sampled is an ISO YYYY-MM-DD *candidate* ONLY when the FULL four-digit
+year, month and day are visibly clear. Otherwise use null. Do not infer the
+century or year from Date Received, today's date, or the rest of the sample.
+3) If several frames conflict, reproduce the clearest visible date in
+date_sampled_raw, mark date_sampled as uncertain, and do not claim high
+overall confidence. In particular, distinguish 10/05 versus 04/28 and
+handwritten 2/6, 0/6, 3/8 and 1/7 carefully.
+The backend independently normalizes abbreviated years from date_sampled_raw
+and flags any conflict or implausible date; do NOT invent a full year here.
+If uncertain, mark date_sampled for manual review.
 For the entire sample, also report overall_confidence as "high", "medium", or "low".
 This is a SUBJECTIVE visual reading confidence, not a probability of correctness.
 HIGH: all applicable fields appear legible, consistent across frames, and no
@@ -33,7 +46,7 @@ unreadable, contradictory, truncated, or visibly ambiguous.
 Do not let human-provided Date Received or inapplicable fields influence confidence.
 Be conservative, especially with handwriting, digits, and abbreviated machine IDs.
 Provide confidence_reason (one short factual sentence citing visible uncertainty).
-Keys: label_type, sample_id, date_sampled, machine, component, serial_number,
+Keys: label_type, sample_id, date_sampled, date_sampled_raw, machine, component, serial_number,
 reference_lube, uncertain_fields, unreadable_fields, overall_confidence,
 confidence_reason.
 """

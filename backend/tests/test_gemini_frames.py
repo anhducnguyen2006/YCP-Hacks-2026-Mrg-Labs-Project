@@ -10,6 +10,7 @@ def test_small_label_contract_preserves_identifiers():
         "label_type": "small",
         "sample_id": "00125767",
         "date_sampled": "2026-09-28",
+        "date_sampled_raw": "09/28/26",
         "machine": "UP 7246",
         "component": "5 NGS",
         "serial_number": "My1207238",
@@ -22,6 +23,7 @@ def test_small_label_contract_preserves_identifiers():
     assert value.sample_id == "00125767"
     assert value.serial_number == "My1207238"
     assert value.overall_confidence == "medium"
+    assert value.date_sampled_raw == "09/28/26"
     assert "ambiguous" in value.confidence_reason
 
 
@@ -54,7 +56,7 @@ def test_request_has_no_automatic_retries_and_a_bounded_timeout(monkeypatch):
     ))
     sdk = MagicMock()
     sdk.interactions.create.return_value.output_text = CompactExtraction(
-        label_type="small", sample_id="00125767", date_sampled=None,
+        label_type="small", sample_id="00125767", date_sampled=None, date_sampled_raw="09/28/26",
         machine="UP 7246", component="5 NGS", serial_number="My1207238",
         reference_lube=None, uncertain_fields=[], unreadable_fields=[],
         overall_confidence="high", confidence_reason="The text is legible.",
