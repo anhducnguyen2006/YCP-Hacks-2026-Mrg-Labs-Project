@@ -27,3 +27,4 @@ backend/media/
 coverage/
 .coverage
 htmlcov/
+*.tsbuildinfo
