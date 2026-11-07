@@ -1,29 +1,36 @@
 # Architecture
 
-## Context
+## Current integration
 
-MRG Sample Scanner is a local-first browser application for laboratory technicians. A future scan flow will capture a rotating cylindrical sample tube, reconstruct its label, extract fields, and route low-confidence results to review before export.
+The latest frontend design stays unchanged. `ScanPage` uses a typed `frontend/src/api.ts` client to create batches, upload one video per sample, and request analysis. `ReviewPage` fetches persisted samples with source media and allows individual field corrections. `TemplatesPage` currently offers only the blank CSV header template.
 
-## Current foundation
+The backend now implements the expected API routes.
 
-- `frontend/` is a Vite React application. Mantine provides the visual system, React Router owns navigation, and TanStack Query is the API state boundary. TanStack Table is installed for the forthcoming sample grid.
-- `backend/` is a FastAPI application. Configuration is loaded with Pydantic Settings, SQLAlchemy 2 owns database connectivity, and Alembic owns schema migrations.
-- PostgreSQL is the source of truth for batches, samples, templates, and export profiles when those domain models are added.
-- Redis is the queue broker. RQ workers will run reconstruction and extraction jobs outside API request lifetimes.
-- Docker Compose provides reproducible local infrastructure: PostgreSQL, Redis, API, worker, and the static frontend.
+```text
+React ScanPage
+  -> POST /api/batches
+  -> POST /api/batches/{id}/samples (save original video)
+  -> POST /api/samples/{id}/analyze
+  -> Redis / RQ -> app.jobs.process_sample
+       -> OpenCV decode up to 32 candidate frames
+       -> select ~8 sharp, time-distributed frames
+       -> one Gemini Interactions request with 8 JPEG images
+       -> Pydantic CompactExtraction validation
+       -> add user-supplied Date Received, enforce label rules
+       -> SQLAlchemy sample fields and keyframe media
+  -> GET /api/samples/{id} (status polling)
+  -> ReviewPage /api/batches/{id}/samples
+       -> PATCH field value -> human verification
+```
 
-## Boundaries and decisions
+PostgreSQL stores batches, samples, field values, media metadata, processing jobs. Files reside in a local shared media volume. Redis carries jobs, and the RQ worker performs Gemini requests outside the web request lifetime. The API never directly sends videos to Gemini: the worker sends only selected JPEG stills.
 
-1. **API-first boundary:** the frontend communicates through `/api`; it does not connect directly to PostgreSQL or Redis.
-2. **Configuration by environment:** service URLs and local CORS origins are environment-driven. Secrets are only represented in `.env`, which is ignored.
-3. **Persistent unfinished batches:** batch state will be persisted in PostgreSQL rather than browser storage, so a browser restart does not lose work.
-4. **Asynchronous processing:** video reconstruction and extraction are job work, not synchronous HTTP work. RQ is selected for its small operational footprint and clear retry model.
-5. **Explicit export contract:** the seven default CSV headers, their order, intentional `Refrence Lube` spelling, empty-string behavior, and string identifiers are part of the product contract and are recorded in `AGENTS.md`.
-6. **No authentication in this version:** the local application assumes a trusted workstation. Authentication can be introduced at the API boundary later without coupling UI components to it.
-7. **No fake functionality:** this phase exposes navigation and states for future workflows but does not claim that scanning, OCR, review automation, or CSV export work.
+## Current limitations
 
-## Planned domain flow
-
-`Batch` -> uploaded/captured `ScanAsset` -> queued `ProcessingJob` -> extracted `Sample` -> manual `Review` -> selected `Export`.
-
-Large and small label templates will be versioned configuration, not hard-coded UI branches. The default field mapping remains governed by the contract in `AGENTS.md`.
+- The frontend shows the first selected image, not a full frame-gallery/stitched label.
+- Model output is **not** independently corroborated. Human review remains required.
+- The worker has a single-sample pipeline; rate-limit budgets, idempotency under concurrent clicks, retries, cancellation and restart recovery need hardening before 800-sample scale.
+- The original video is kept. Selected frames are also stored for review.
+- Only metadata and file extensions are checked at upload time; OpenCV rejects unreadable videos when processing.
+- Sample CSV export beyond the blank template remains future work.
+- Model token usage, throughput, and real-label accuracy are not benchmarked here.

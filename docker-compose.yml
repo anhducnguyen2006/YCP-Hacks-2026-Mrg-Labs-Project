@@ -5,67 +5,54 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-mrg_scanner}
       POSTGRES_USER: ${POSTGRES_USER:-mrg}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mrg_local_dev}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mrg} -d ${POSTGRES_DB:-mrg_scanner}"]
       interval: 5s
       timeout: 5s
       retries: 10
-
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+    ports: ["6379:6379"]
+    volumes: [redis_data:/data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
-
   api:
-    build:
-      context: ./backend
-    environment:
+    build: {context: ./backend}
+    environment: &backend_env
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mrg}:${POSTGRES_PASSWORD:-mrg_local_dev}@postgres:5432/${POSTGRES_DB:-mrg_scanner}
       REDIS_URL: redis://redis:6379/0
       FRONTEND_ORIGINS: http://localhost:5173,http://frontend:5173
-    ports:
-      - "8000:8000"
+      MEDIA_ROOT: /app/media
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
+      GEMINI_THINKING_LEVEL: ${GEMINI_THINKING_LEVEL:-minimal}
+      SELECTED_FRAME_COUNT: ${SELECTED_FRAME_COUNT:-8}
+    ports: ["8000:8000"]
+    volumes: [sample_media:/app/media]
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
-
   worker:
-    build:
-      context: ./backend
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mrg}:${POSTGRES_PASSWORD:-mrg_local_dev}@postgres:5432/${POSTGRES_DB:-mrg_scanner}
-      REDIS_URL: redis://redis:6379/0
+    build: {context: ./backend}
+    environment: *backend_env
+    volumes: [sample_media:/app/media]
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
     command: rq worker --url redis://redis:6379/0 mrg-scanner
-
   frontend:
     build:
       context: ./frontend
-      args:
-        VITE_API_BASE_URL: http://localhost:8000
-    ports:
-      - "5173:80"
-    depends_on:
-      - api
-
+      args: {VITE_API_BASE_URL: http://localhost:8000}
+    ports: ["5173:80"]
+    depends_on: [api]
 volumes:
   postgres_data:
   redis_data:
+  sample_media:
