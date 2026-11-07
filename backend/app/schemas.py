@@ -88,6 +88,11 @@ class SampleOut(BaseModel):
     latest_job: JobOut | None
 
 
+class InventoryOut(BaseModel):
+    total: int
+    items: list[SampleOut]
+
+
 class FieldCorrection(BaseModel):
     current_value: str = Field(max_length=5000)
 

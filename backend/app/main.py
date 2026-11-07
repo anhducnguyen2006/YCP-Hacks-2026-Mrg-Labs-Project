@@ -10,14 +10,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from redis import Redis
 from rq import Queue
-from sqlalchemy import select
+from sqlalchemy import select, func, or_, exists
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia, uid
 from app.schemas import (
-    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut,
+    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut, InventoryOut,
 )
 from app.store import batch_out, sample_out
 
@@ -165,6 +165,62 @@ def list_samples(
         .offset(offset).limit(limit)
     ).all()
     return [sample_out(db, s) for s in samples]
+
+
+
+@app.get("/api/batches/{batch_id}/inventory", response_model=InventoryOut)
+def inventory(
+    batch_id: str, search: str = "", sort_by: str = "created_at",
+    descending: bool = True, status: str = "all",
+    offset: int = 0, limit: int = 50, db: Session = Depends(get_db),
+) -> InventoryOut:
+    """Search and sort all batch records before applying pagination."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    if offset < 0 or not 1 <= limit <= 100 or len(search) > 200:
+        raise HTTPException(422, "Invalid inventory query.")
+    sortable = {
+        "sample_id", "date_sampled", "date_received", "machine",
+        "component", "serial_number", "reference_lube",
+    }
+    if sort_by not in sortable | {"created_at", "confidence"}:
+        raise HTTPException(422, "Unsupported sort field.")
+    if status not in {"all", "queued", "processing", "completed", "failed", "review"}:
+        raise HTTPException(422, "Unsupported status.")
+    stmt = select(Sample).where(Sample.batch_id == batch_id)
+    term = search.strip().lower()
+    if term:
+        matching_field = exists(select(SampleField.id).where(
+            SampleField.sample_id == Sample.id,
+            func.lower(SampleField.current_value).contains(term),
+        ))
+        stmt = stmt.where(or_(
+            func.lower(Sample.id).contains(term),
+            func.lower(Sample.external_sample_id).contains(term),
+            matching_field,
+        ))
+    if status == "review":
+        stmt = stmt.where(exists(select(SampleField.id).where(
+            SampleField.sample_id == Sample.id,
+            SampleField.review_required.is_(True),
+            SampleField.reviewed.is_(False),
+        )))
+    elif status != "all":
+        stmt = stmt.where(Sample.processing_status == status)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    if sort_by in sortable:
+        key = select(SampleField.current_value).where(
+            SampleField.sample_id == Sample.id, SampleField.field_key == sort_by
+        ).correlate(Sample).scalar_subquery()
+    elif sort_by == "confidence":
+        key = Sample.ai_confidence
+    else:
+        key = Sample.created_at
+    stmt = stmt.order_by(
+        key.desc().nullslast() if descending else key.asc().nullsfirst(),
+        Sample.created_at.desc(), Sample.id.desc(),
+    ).offset(offset).limit(limit)
+    return InventoryOut(total=total, items=[sample_out(db, s) for s in db.scalars(stmt)])
 
 
 @app.post("/api/batches/{batch_id}/samples", response_model=SampleOut, status_code=201)

@@ -19,6 +19,8 @@ export type BatchStatus = {
   items: { id: string; status: string }[];
 };
 
+export type InventoryResponse = { total: number; items: Sample[] };
+
 export type SampleField = {
   id: string;
   field_key: string;
@@ -68,6 +70,13 @@ export const api = {
   baseUrl: API_BASE_URL,
   batches: () => request<Batch[]>("/api/batches"),
   batchStatus: (batchId: string) => request<BatchStatus>(`/api/batches/${encodeURIComponent(batchId)}/status`),
+  inventory: (batchId: string, options: { search: string; status: string; sortBy: string; descending: boolean; offset: number }) => {
+    const params = new URLSearchParams({
+      search: options.search, status: options.status, sort_by: options.sortBy,
+      descending: String(options.descending), offset: String(options.offset), limit: "50",
+    });
+    return request<InventoryResponse>(`/api/batches/${encodeURIComponent(batchId)}/inventory?${params}`);
+  },
   exportBatch: async (batchId: string, reviewedOnly = false): Promise<Blob> => {
     const response = await fetch(
       `${API_BASE_URL}/api/batches/${encodeURIComponent(batchId)}/export.csv?reviewed_only=${reviewedOnly}`
