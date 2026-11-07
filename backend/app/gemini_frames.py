@@ -1,6 +1,7 @@
 """One Gemini Interactions request containing multiple locally selected images."""
 import base64
 from collections.abc import Sequence
+from time import perf_counter
 
 from google import genai
 from google.genai import errors, types
@@ -63,12 +64,15 @@ def _is_status(exc: Exception, code: int) -> bool:
     return False
 
 
-def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtraction:
+def analyze_selected_frames(
+    frames: Sequence[SelectedFrame], timing_ms: dict[str, float] | None = None,
+) -> CompactExtraction:
     if not frames:
         raise ValueError("Cannot analyze an empty set of frames.")
     settings = get_settings()
     if not settings.gemini_api_key:
         raise RuntimeError("GEMINI_API_KEY is not configured.")
+    image_encode_start = perf_counter()
     images = [
         {
             "type": "image",
@@ -77,6 +81,9 @@ def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtractio
         }
         for frame in frames
     ]
+    if timing_ms is not None:
+        timing_ms["encode_images"] = round((perf_counter() - image_encode_start) * 1000, 2)
+    client_start = perf_counter()
     # A single 429 must not keep the only worker busy for five minutes while
     # SDK retries sleep. Retrying a project-level quota limit is a policy/UI
     # decision made after checking usage, not part of one video extraction.
@@ -86,6 +93,9 @@ def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtractio
             retry_options=types.HttpRetryOptions(attempts=1),
         ),
     )
+    if timing_ms is not None:
+        timing_ms["client_setup"] = round((perf_counter() - client_start) * 1000, 2)
+    request_start = perf_counter()
     try:
         interaction = client.interactions.create(
             model=settings.gemini_model,
@@ -112,7 +122,14 @@ def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtractio
             ) from exc
         raise
     finally:
+        if timing_ms is not None:
+            timing_ms["api_request"] = round((perf_counter() - request_start) * 1000, 2)
         client.close()
-    if not interaction.output_text:
-        raise RuntimeError("Gemini returned no extraction text.")
-    return CompactExtraction.model_validate_json(interaction.output_text)
+    validation_start = perf_counter()
+    try:
+        if not interaction.output_text:
+            raise RuntimeError("Gemini returned no extraction text.")
+        return CompactExtraction.model_validate_json(interaction.output_text)
+    finally:
+        if timing_ms is not None:
+            timing_ms["validate_response"] = round((perf_counter() - validation_start) * 1000, 2)

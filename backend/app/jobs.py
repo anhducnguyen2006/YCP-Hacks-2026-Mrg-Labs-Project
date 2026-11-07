@@ -10,6 +10,7 @@ from app.frame_selection import select_frames
 from app.gemini_frames import GeminiRateLimitError, GeminiUnavailableError, analyze_selected_frames
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia
 from app.schemas import FIELD_KEYS
+from app.timing import JobTimer
 
 
 def _time() -> datetime:
@@ -32,6 +33,12 @@ def _stage(job_id: str, sample_id: str, name: str) -> None:
 def process_sample(sample_id: str, job_id: str) -> None:
     settings = get_settings()
     root = Path(settings.media_root).resolve()
+    timer = JobTimer()
+    gemini_ms: dict[str, float] = {}
+    selected_count = 0
+    jpeg_bytes = 0
+    outcome = "failed"
+    timer.begin("source_lookup")
     try:
         _stage(job_id, sample_id, "extracting_frames")
         with SessionLocal() as db:
@@ -45,7 +52,11 @@ def process_sample(sample_id: str, job_id: str) -> None:
             video_path = (root / video.relative_path).resolve()
             if not video_path.is_relative_to(root):
                 raise ValueError("Invalid stored video path.")
+        timer.begin("frame_selection")
         frames = select_frames(video_path, count=settings.selected_frame_count)
+        selected_count = len(frames)
+        jpeg_bytes = sum(len(frame.jpeg) for frame in frames)
+        timer.begin("keyframe_storage")
         with SessionLocal() as db:
             # On retry replace existing keyframes instead of generating duplicates.
             old_frames = db.scalars(
@@ -69,8 +80,10 @@ def process_sample(sample_id: str, job_id: str) -> None:
                     },
                 ))
             db.commit()
+        timer.begin("gemini")
         _stage(job_id, sample_id, "analyzing_selected_frames")
-        extraction = analyze_selected_frames(frames)
+        extraction = analyze_selected_frames(frames, timing_ms=gemini_ms)
+        timer.begin("result_storage")
         _stage(job_id, sample_id, "saving_results")
         with SessionLocal() as db:
             sample = db.get(Sample, sample_id)
@@ -133,7 +146,9 @@ def process_sample(sample_id: str, job_id: str) -> None:
             job.current_stage = "completed"
             job.error_message = None
             db.commit()
+        outcome = "completed"
     except Exception as exc:
+        timer.begin("failure_recording")
         with SessionLocal() as db:
             sample = db.get(Sample, sample_id)
             job = db.get(ProcessingJob, job_id)
@@ -154,3 +169,12 @@ def process_sample(sample_id: str, job_id: str) -> None:
                 )
             db.commit()
         raise
+    finally:
+        timer.emit(
+            sample_id=sample_id,
+            status=outcome,
+            model=settings.gemini_model,
+            frame_count=selected_count,
+            jpeg_bytes=jpeg_bytes,
+            gemini_ms=gemini_ms,
+        )
