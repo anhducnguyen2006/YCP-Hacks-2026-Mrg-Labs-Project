@@ -58,9 +58,7 @@ def batch_quality(db: Session, batch_id: str) -> dict:
                 continue
             field = fields.get(key)
             if field is None:
-                # Older completed records may have incomplete field contracts.
-                alerts.append({"field_key": key, "code": "missing",
-                               "message": "No extracted field; inspect the source label."})
+                # Legacy records may not have any structured extraction for this field.
                 continue
             if field.status == "not_applicable":
                 continue
@@ -69,8 +67,10 @@ def batch_quality(db: Session, batch_id: str) -> dict:
                 alerts.append({"field_key": key, "code": "unreadable",
                                "message": "AI could not read this field. Inspect the original label."})
             elif not value:
-                alerts.append({"field_key": key, "code": "missing",
-                               "message": "Blank value; check whether text appears on the label."})
+                # Blank is NOT evidence of unreadable writing: labels can leave
+                # optional fields empty intentionally. Explicit unreadable_fields
+                # from Gemini retains the red warning above.
+                continue
             elif key == "date_sampled":
                 try:
                     year = date.fromisoformat(value).year

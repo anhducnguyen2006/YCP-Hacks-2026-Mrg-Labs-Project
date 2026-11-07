@@ -117,3 +117,8 @@ class CompactExtraction(BaseModel):
     unreadable_fields: list[str]
     overall_confidence: Literal["high", "medium", "low"]
     confidence_reason: str
+
+
+class SelectiveExportRequest(BaseModel):
+    sample_ids: list[str] = Field(min_length=1, max_length=1000)
+    verified_only: bool = False

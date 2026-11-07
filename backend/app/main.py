@@ -19,7 +19,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia, uid
 from app.schemas import (
-    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut, InventoryOut, SampleDeleteRequest,
+    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut, InventoryOut, SampleDeleteRequest, SelectiveExportRequest,
 )
 from app.store import batch_out, sample_out
 from app.quality import batch_quality
@@ -144,6 +144,47 @@ def export_batch_csv(
         values[2] = batch.receiving_date
         writer.writerow(values)
     # Keep filename ASCII-only for a safe HTTP Content-Disposition value.
+    filename = re.sub(r"[^A-Za-z0-9._-]", "_", batch.default_export_filename)
+    if not filename.lower().endswith(".csv"):
+        filename = "mrg-samples.csv"
+    return Response(
+        content=output.getvalue(), media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.post("/api/batches/{batch_id}/export-selected.csv")
+def export_selected_csv(
+    batch_id: str, payload: SelectiveExportRequest, db: Session = Depends(get_db)
+) -> Response:
+    """Export exactly the chosen completed records, preserving seven CSV columns."""
+    batch = db.get(Batch, batch_id)
+    if batch is None:
+        raise HTTPException(404, "Batch not found.")
+    ids = list(dict.fromkeys(payload.sample_ids))
+    samples = db.scalars(select(Sample).where(
+        Sample.batch_id == batch_id, Sample.id.in_(ids)
+    )).all()
+    if len(samples) != len(ids):
+        raise HTTPException(422, "Selected samples must all belong to this batch.")
+    by_id = {sample.id: sample for sample in samples}
+    if any(sample.processing_status != "completed" for sample in samples):
+        raise HTTPException(422, "Only completed samples may be exported.")
+    if payload.verified_only and any(sample.review_status != "verified" for sample in samples):
+        raise HTTPException(422, "Selection contains unverified samples.")
+    values = {sid: {} for sid in ids}
+    for field in db.scalars(select(SampleField).where(SampleField.sample_id.in_(ids))):
+        values[field.sample_id][field.field_key] = field.current_value or ""
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\r\n")
+    writer.writerow(CSV_HEADERS)
+    for sid in ids:
+        row = [values[sid].get(key, "") for key in FIELD_KEYS]
+        row[2] = batch.receiving_date
+        writer.writerow(row)
     filename = re.sub(r"[^A-Za-z0-9._-]", "_", batch.default_export_filename)
     if not filename.lower().endswith(".csv"):
         filename = "mrg-samples.csv"
