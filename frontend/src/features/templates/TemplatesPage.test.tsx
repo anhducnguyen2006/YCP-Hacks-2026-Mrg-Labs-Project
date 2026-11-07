@@ -1,11 +1,15 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
 import { TemplatesPage } from "./TemplatesPage";
+import { api } from "../../api";
+vi.mock("../../api", () => ({ api: { batches: vi.fn(), batchStatus: vi.fn(), exportBatch: vi.fn() } }));
 
 test("downloads only the seven required headers and switches label mappings", () => {
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
-  render(<MantineProvider><TemplatesPage /></MantineProvider>);
+  vi.mocked(api.batches).mockResolvedValue([]);
+  render(<MantineProvider><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><TemplatesPage /></QueryClientProvider></MantineProvider>);
   const download = screen.getByRole("link", { name: "Download blank CSV template" });
   expect(decodeURIComponent(download.getAttribute("href")!.split(",").slice(1).join(","))).toBe("Sample ID,Date Sampled,Date Received,Machine,Component,Serial Number,Refrence Lube\r\n");
   expect(screen.getByText("Equip ID")).toBeInTheDocument();
