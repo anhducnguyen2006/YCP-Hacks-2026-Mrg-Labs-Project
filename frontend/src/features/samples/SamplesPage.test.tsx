@@ -48,3 +48,31 @@ test("opens an editable inspector directly from the Samples inventory", async ()
   await waitFor(() => expect(api.updateField).toHaveBeenCalledWith("sample-1", "sample_id", "00042"));
   expect(await screen.findByText("Field saved and marked as verified.")).toBeInTheDocument();
 });
+
+test("selects all current-page samples and closes the inspector in one action", async () => {
+  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  const sample: Sample = {
+    id: "sample-1", batch_id: "batch-1", external_sample_id: "00123",
+    label_type: "small", processing_status: "completed", review_status: "pending",
+    ai_confidence: "high", ai_confidence_reason: null,
+    created_at: "", updated_at: "", fields: [], media: [], latest_job: null,
+  };
+  vi.mocked(api.batches).mockResolvedValue([{
+    id: "batch-1", name: "Test batch", receiving_date: "2026-11-07",
+    default_export_filename: "samples.csv", created_at: "", updated_at: "",
+  }]);
+  vi.mocked(api.inventory).mockResolvedValue({ total: 1, items: [sample] });
+  vi.mocked(api.sample).mockResolvedValue(sample);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<MantineProvider><QueryClientProvider client={client}>
+    <MemoryRouter initialEntries={["/samples?batch=batch-1"]}>
+      <SamplesPage />
+    </MemoryRouter>
+  </QueryClientProvider></MantineProvider>);
+  fireEvent.click(await screen.findByRole("button", { name: "Select all on page (1)" }));
+  expect(screen.getByRole("checkbox", { name: "Select sample 00123" })).toBeChecked();
+  fireEvent.click(screen.getByRole("button", { name: "Inspect / edit" }));
+  expect(await screen.findByText("Sample details & verification")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Close modal" }));
+  await waitFor(() => expect(screen.queryByText("Sample details & verification")).not.toBeInTheDocument());
+});
