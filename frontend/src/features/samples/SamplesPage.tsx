@@ -264,6 +264,7 @@ export function SamplesPage() {
     {notice && <Alert color="green" role="status">{notice}</Alert>}
 
     <Modal opened={Boolean(inspectedId)} onClose={closeInspector} title="Sample details & verification"
+      closeButtonProps={{ "aria-label": "Close modal" }}
       size="95%" centered styles={{ body: { padding: "16px" } }}>
       {detail.isLoading && !currentDetail && <Group justify="center" p="xl"><Loader size="sm" /><Text>Loading sample details…</Text></Group>}
       {detail.isError && !currentDetail && <Alert color="red">Could not load sample: {detail.error.message}</Alert>}

@@ -9,13 +9,16 @@ from app.config import get_settings
 from app.frame_selection import SelectedFrame
 from app.schemas import CompactExtraction
 
-
 PROMPT = """Read a laboratory sample label across these time-ordered frames of ONE rotating tube.
 Each frame may show a different section of the same cylindrical label. Combine evidence
 across images; do not concatenate unrelated characters. Do not guess unreadable handwriting.
 Return EXACTLY the JSON schema requested. Keep IDs and serial numbers as strings, preserving
-case and leading zeros when legible. Use null for missing or unreadable fields and list
-uncertain field keys under uncertain_fields or unreadable_fields. Never fabricate values.
+case and leading zeros when legible. Use null for missing or unreadable fields.
+Distinguish truly blank label boxes from visible but unreadable handwriting:
+a blank box is null but must NOT appear in unreadable_fields;
+include a field in unreadable_fields only when writing is actually visible but
+cannot be transcribed. List ambiguous partially legible writing under
+uncertain_fields. Never fabricate values.
 Large: barcode=sample_id, Date=date_sampled, Equip ID=machine,
 Sample point=component, Ref Lube=reference_lube; serial_number=null.
 Small: barcode=sample_id, Date=date_sampled, RN=machine, SN=serial_number,

@@ -59,13 +59,13 @@ def test_year_outlier_unreadable_fields_and_verification(client):
 
     filtered = http.get(f"/api/batches/{batch_id}/inventory?flagged_only=true")
     assert filtered.status_code == 200
-    assert filtered.json()["total"] == 5  # sample IDs and machine fields are also blank
+    assert filtered.json()["total"] == 2  # blank does not mean unreadable
 
     assert http.post(f"/api/samples/{samples[3]}/verify").status_code == 200
     detail = http.get(f"/api/samples/{samples[3]}").json()
     assert detail["review_status"] == "verified"
     filtered = http.get(f"/api/batches/{batch_id}/inventory?flagged_only=true")
-    assert filtered.json()["total"] == 4
+    assert filtered.json()["total"] == 1
     assert http.post(f"/api/samples/{samples[3]}/reopen").json()["review_status"] == "pending"
 
     # Editing after verification revokes sample-level verification.
@@ -94,3 +94,28 @@ def test_no_consensus_from_tiny_or_disagreeing_batch(client):
     assert report["consensus_year"] is None
     assert not any(flag["code"] == "year_outlier"
                    for flags in report["flags"].values() for flag in flags)
+
+
+def test_blank_serial_number_is_not_confused_with_unreadable(client):
+    http, engine = client
+    with Session(engine) as db:
+        batch = Batch(name="Small labels", receiving_date="2026-11-07")
+        db.add(batch)
+        db.flush()
+        blank = Sample(batch_id=batch.id, label_type="small",
+                       processing_status="completed")
+        unreadable = Sample(batch_id=batch.id, label_type="small",
+                            processing_status="completed")
+        db.add_all([blank, unreadable])
+        db.flush()
+        db.add(SampleField(sample_id=blank.id, field_key="serial_number",
+                           status="missing", current_value=None))
+        db.add(SampleField(sample_id=unreadable.id, field_key="serial_number",
+                           status="unreadable", current_value=None))
+        db.commit()
+        bid, blank_id, unreadable_id = batch.id, blank.id, unreadable.id
+
+    report = http.get(f"/api/batches/{bid}/quality").json()
+    assert blank_id not in report["flags"]
+    assert any(flag["code"] == "unreadable" and flag["field_key"] == "serial_number"
+               for flag in report["flags"][unreadable_id])

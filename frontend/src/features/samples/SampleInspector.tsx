@@ -73,7 +73,7 @@ export function SampleInspector({ sample, onSaved, qualityFlags = [] }: {
   const verify = useMutation({
     mutationFn: () => sample.review_status === "verified"
       ? api.reopenSample(sample.id) : api.verifySample(sample.id),
-    onSuccess: onSaved,
+    onSuccess: (updated) => onSaved(updated),
   });
   return <Stack gap="lg" className="sample-inspector">
     <Group justify="space-between" align="center">

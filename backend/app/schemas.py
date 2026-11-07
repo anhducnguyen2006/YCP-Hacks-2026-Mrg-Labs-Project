@@ -4,7 +4,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 FIELD_KEYS = (
     "sample_id",
     "date_sampled",
@@ -42,6 +41,7 @@ class BatchStatusOut(BaseModel):
     processing: int
     completed: int
     failed: int
+    canceled: int
     needs_review: int
     items: list[BatchSampleStatusOut]
 
@@ -117,3 +117,8 @@ class CompactExtraction(BaseModel):
     unreadable_fields: list[str]
     overall_confidence: Literal["high", "medium", "low"]
     confidence_reason: str
+
+
+class SelectiveExportRequest(BaseModel):
+    sample_ids: list[str] = Field(min_length=1, max_length=1000)
+    verified_only: bool = False
