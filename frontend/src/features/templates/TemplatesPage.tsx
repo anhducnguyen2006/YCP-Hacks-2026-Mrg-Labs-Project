@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Accordion, Alert, Badge, Box, Button, Divider, Group, Paper, SegmentedControl,
-  Select, SimpleGrid, Stack, Switch, Table, Text, ThemeIcon, Title, Modal, Checkbox, ScrollArea,
+  Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon, Title, Modal, Checkbox, ScrollArea,
 } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { Download, FileSpreadsheet, FlaskConical, ShieldCheck } from "lucide-react";
