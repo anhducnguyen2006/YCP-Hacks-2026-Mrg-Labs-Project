@@ -9,7 +9,7 @@ import { SamplesPage } from "./SamplesPage";
 vi.mock("../../api", () => ({
   api: {
     batches: vi.fn(), inventory: vi.fn(), sample: vi.fn(), updateField: vi.fn(), mediaUrl: (id: string) => `/api/media/${id}`,
-    deleteSamples: vi.fn(),
+    deleteSamples: vi.fn(), batchQuality: vi.fn(), verifySample: vi.fn(), reopenSample: vi.fn(),
   },
 }));
 
@@ -26,6 +26,7 @@ test("opens an editable inspector directly from the Samples inventory", async ()
       status: "extracted", review_required: true, reviewed: false, review_reason: null,
     }],
   };
+  vi.mocked(api.batchQuality).mockResolvedValue({ consensus_year: null, scanned: 1, flags: {} });
   vi.mocked(api.batches).mockResolvedValue([{
     id: "batch-1", name: "Test batch", receiving_date: "2026-11-07",
     default_export_filename: "samples.csv", created_at: "", updated_at: "",
@@ -42,11 +43,11 @@ test("opens an editable inspector directly from the Samples inventory", async ()
 
   await screen.findByText("Sample details & verification");
   await screen.findByText("Source video & selected frames");
-  fireEvent.click(screen.getByRole("button", { name: "Edit / verify" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit field" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Sample ID" }), { target: { value: "00042" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save & verify field" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save change" }));
   await waitFor(() => expect(api.updateField).toHaveBeenCalledWith("sample-1", "sample_id", "00042"));
-  expect(await screen.findByText("Field saved and marked as verified.")).toBeInTheDocument();
+  expect(await screen.findByText("Change saved. Verify the complete sample after checking its original label.")).toBeInTheDocument();
 });
 
 test("selects all current-page samples and closes the inspector in one action", async () => {

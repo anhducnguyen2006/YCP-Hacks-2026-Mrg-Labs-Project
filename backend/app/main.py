@@ -214,11 +214,10 @@ def inventory(
             matching_field,
         ))
     if status == "review":
-        stmt = stmt.where(exists(select(SampleField.id).where(
-            SampleField.sample_id == Sample.id,
-            SampleField.review_required.is_(True),
-            SampleField.reviewed.is_(False),
-        )))
+        stmt = stmt.where(
+            Sample.processing_status == "completed",
+            Sample.review_status != "verified",
+        )
     elif status != "all":
         stmt = stmt.where(Sample.processing_status == status)
     if confidence == "unrated":
