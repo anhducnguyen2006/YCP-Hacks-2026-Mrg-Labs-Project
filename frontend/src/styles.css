@@ -1,0 +1,10 @@
+:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #172f35; background: #f7faf9; }
+body { margin: 0; min-width: 320px; }
+.header { background: rgba(255,255,255,.92); border-bottom: 1px solid #e6eeec; }
+.navbar { background: #fff; border-right: 1px solid #e6eeec; }
+.brand { display: flex; align-items: center; gap: 10px; color: #17383d; }
+.nav-label, .eyebrow { color: #5b7c7d; font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+.nav-label { padding: 18px 12px 8px; }
+.nav-footer { border-top: 1px solid #e6eeec; padding: 18px 12px 4px; }
+.status-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: #2bb673; }
+.empty-panel { min-height: 340px; border: 1px dashed #c9dcda; border-radius: 16px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 28px; }

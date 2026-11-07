@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: mrg-sample-scanner-api
+Version: 0.1.0
+Summary: FastAPI backend for MRG Sample Scanner
+Requires-Python: >=3.12
+Requires-Dist: alembic<2,>=1.13
+Requires-Dist: fastapi<1,>=0.115
+Requires-Dist: pydantic-settings<3,>=2.6
+Requires-Dist: psycopg[binary]<4,>=3.2
+Requires-Dist: redis<6,>=5
+Requires-Dist: rq<3,>=2
+Requires-Dist: sqlalchemy<3,>=2.0
+Requires-Dist: uvicorn[standard]<1,>=0.32
+Provides-Extra: dev
+Requires-Dist: httpx<1,>=0.27; extra == "dev"
+Requires-Dist: pytest<9,>=8.3; extra == "dev"
+Requires-Dist: ruff<1,>=0.8; extra == "dev"
