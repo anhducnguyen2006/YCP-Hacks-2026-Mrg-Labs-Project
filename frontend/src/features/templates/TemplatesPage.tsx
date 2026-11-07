@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Accordion, Alert, Badge, Box, Button, Divider, Group, Paper, SegmentedControl,
-  Select, SimpleGrid, Stack, Switch, Table, Text, ThemeIcon, Title,
+  Select, SimpleGrid, Stack, Switch, Table, Text, ThemeIcon, Title, Modal, Checkbox, ScrollArea,
 } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { Download, FileSpreadsheet, FlaskConical, ShieldCheck } from "lucide-react";
@@ -14,6 +14,9 @@ export function TemplatesPage() {
   const [reviewedOnly, setReviewedOnly] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [previewSearch, setPreviewSearch] = useState("");
   const batches = useQuery({ queryKey: ["batches"], queryFn: api.batches, retry: false });
   const batchStatus = useQuery({
     queryKey: ["batch-status", batchId],
@@ -21,15 +24,29 @@ export function TemplatesPage() {
     enabled: Boolean(batchId),
     retry: false,
   });
+  const preview = useQuery({
+    queryKey: ["export-preview", batchId],
+    queryFn: () => api.exportPreview(batchId!),
+    enabled: Boolean(batchId) && previewOpen,
+    retry: false,
+  });
+  const previewRows = preview.data ?? [];
+  const eligibleRows = reviewedOnly ? previewRows.filter((sample) => sample.verified) : previewRows;
+  const filteredRows = eligibleRows.filter((sample) =>
+    sample.label.toLowerCase().includes(previewSearch.toLowerCase()));
+  const selectedEligible = eligibleRows.filter((sample) => selectedIds.includes(sample.id));
+  const selectedVisible = filteredRows.filter((sample) => selectedIds.includes(sample.id));
+  const selectedAllVisible = filteredRows.length > 0 && selectedVisible.length === filteredRows.length;
   const selectedBatch = batches.data?.find((batch) => batch.id === batchId);
   const blankTemplate = `data:text/csv;charset=utf-8,${encodeURIComponent(sampleColumns.map((column) => column.label).join(",") + "\r\n")}`;
 
   const download = async () => {
-    if (!batchId || downloading) return;
+    if (!batchId || downloading || !selectedEligible.length) return;
     setDownloading(true);
     setExportError(null);
     try {
-      const csv = await api.exportBatch(batchId, reviewedOnly);
+      const csv = await api.exportSelected(batchId,
+        selectedEligible.map((sample) => sample.id), reviewedOnly);
       const url = URL.createObjectURL(csv);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -38,6 +55,7 @@ export function TemplatesPage() {
       anchor.click();
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setPreviewOpen(false);
     } catch (error) {
       setExportError(error instanceof Error ? error.message : "Export failed");
     } finally {
@@ -66,11 +84,14 @@ export function TemplatesPage() {
         <Stack gap="md">
           <Select label="Batch to export" placeholder="Select a batch" searchable
             data={(batches.data ?? []).map((batch) => ({ value: batch.id, label: batch.name }))}
-            value={batchId} onChange={(value) => { setBatchId(value); setExportError(null); }}
+            value={batchId} onChange={(value) => { setBatchId(value); setExportError(null); setSelectedIds([]); setPreviewOpen(false); }}
             disabled={batches.isLoading || batches.isError} />
           <Switch color="green" label="Export only samples marked Verified"
             description="Verify an entire sample once in Samples; otherwise, export includes all completed records."
-            checked={reviewedOnly} onChange={(event) => setReviewedOnly(event.currentTarget.checked)} />
+            checked={reviewedOnly} onChange={(event) => {
+              setReviewedOnly(event.currentTarget.checked);
+              setSelectedIds([]);
+            }} />
         </Stack>
         <Stack gap="sm" justify="center">
           {batchStatus.data
@@ -81,8 +102,13 @@ export function TemplatesPage() {
               </Group>
             : <Text size="sm" c="dimmed">Select a batch to see its processing summary.</Text>}
           <Button color="green" size="md" fullWidth leftSection={<Download size={18} />}
-            disabled={!batchId} loading={downloading} onClick={() => void download()}>
-            Download batch CSV
+            disabled={!batchId} onClick={() => {
+              setSelectedIds([]);
+              setPreviewSearch("");
+              setExportError(null);
+              setPreviewOpen(true);
+            }}>
+            Preview & select samples
           </Button>
           <Text size="xs" c="dimmed">The file contains exactly seven columns with the required names and order.</Text>
         </Stack>
@@ -93,6 +119,56 @@ export function TemplatesPage() {
       {batchStatus.data && batchStatus.data.needs_review > 0 && !reviewedOnly &&
         <Alert color="yellow" mt="lg">This export includes unverified AI readings. Review them in Samples before using the data.</Alert>}
     </Paper>
+
+    <Modal opened={previewOpen} onClose={() => !downloading && setPreviewOpen(false)}
+      title="Review samples before export" size="lg" centered
+      closeOnEscape={!downloading} closeOnClickOutside={!downloading}>
+      <Stack gap="md">
+        <Text size="sm" c="dimmed">Select the completed samples to include in the seven-column CSV.
+          The export contains only the records you choose, across all pages of this batch.</Text>
+        {preview.isLoading && <Text size="sm">Loading all completed samples…</Text>}
+        {preview.isError && <Alert color="red">Could not load the preview: {preview.error.message}</Alert>}
+        {preview.isSuccess && <>
+          <Text size="sm" fw={600}>{eligibleRows.length} eligible · {selectedEligible.length} selected</Text>
+          <Text size="xs" c="dimmed">{reviewedOnly
+            ? "Only verified samples are eligible (change the switch on Export to include unverified ones)."
+            : "Unverified samples can be exported, but should be checked against the original labels."}</Text>
+          <Group gap="xs">
+            <Button size="xs" variant="default" disabled={!filteredRows.length}
+              onClick={() => setSelectedIds((previous) => [...new Set([
+                ...previous, ...filteredRows.map((sample) => sample.id)
+              ])])}>Select all shown</Button>
+            <Button size="xs" variant="default" disabled={!selectedIds.length}
+              onClick={() => setSelectedIds([])}>Deselect all</Button>
+            {selectedAllVisible && <Badge color="green">All shown selected</Badge>}
+          </Group>
+          <TextInput label="Filter by sample ID" placeholder="Find sample…" value={previewSearch}
+            onChange={(event) => setPreviewSearch(event.currentTarget.value)} />
+          <ScrollArea.Autosize mah={320} type="auto">
+            <Stack gap="xs" p="xs">
+              {filteredRows.map((sample) => <Checkbox key={sample.id} color="green"
+                checked={selectedIds.includes(sample.id)}
+                onChange={(event) => {
+                  setSelectedIds((previous) => event.currentTarget.checked
+                    ? [...new Set([...previous, sample.id])]
+                    : previous.filter((id) => id !== sample.id));
+                }}
+                label={`${sample.label} — ${sample.verified ? "Verified" : "Unverified"}`} />)}
+              {!filteredRows.length && <Text size="sm" c="dimmed">No eligible samples match this filter.</Text>}
+            </Stack>
+          </ScrollArea.Autosize>
+          <Group justify="flex-end">
+            <Button variant="default" disabled={downloading}
+              onClick={() => setPreviewOpen(false)}>Cancel</Button>
+            <Button color="green" disabled={selectedEligible.length === 0}
+              loading={downloading} onClick={() => void download()}>
+              Export {selectedEligible.length} selected
+            </Button>
+          </Group>
+        </>}
+        {exportError && <Alert color="red">{exportError}</Alert>}
+      </Stack>
+    </Modal>
 
     <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
       <Paper withBorder p="lg" radius="lg">

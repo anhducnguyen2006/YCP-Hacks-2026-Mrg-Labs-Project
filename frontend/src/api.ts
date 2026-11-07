@@ -20,6 +20,7 @@ export type BatchStatus = {
 };
 
 export type InventoryResponse = { total: number; items: Sample[] };
+export type ExportPreviewRow = { id: string; label: string; verified: boolean };
 
 export type QualityFlag = {
   field_key: string;
@@ -96,6 +97,23 @@ export const api = {
       flagged_only: String(options.flaggedOnly ?? false),
     });
     return request<InventoryResponse>(`/api/batches/${encodeURIComponent(batchId)}/inventory?${params}`);
+  },
+  exportPreview: (batchId: string) =>
+    request<ExportPreviewRow[]>(`/api/batches/${encodeURIComponent(batchId)}/export-preview`),
+  exportSelected: async (batchId: string, sampleIds: string[], verifiedOnly: boolean): Promise<Blob> => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/batches/${encodeURIComponent(batchId)}/export-selected.csv`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sample_ids: sampleIds, verified_only: verifiedOnly }),
+      },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.detail ?? `Export failed (${response.status})`);
+    }
+    return response.blob();
   },
   exportBatch: async (batchId: string, reviewedOnly = false): Promise<Blob> => {
     const response = await fetch(
