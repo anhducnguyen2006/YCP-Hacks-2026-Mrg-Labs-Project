@@ -156,6 +156,31 @@ def export_batch_csv(
     )
 
 
+@app.get("/api/batches/{batch_id}/export-preview")
+def export_preview(batch_id: str, db: Session = Depends(get_db)) -> list[dict]:
+    """Lightweight preview of all completed records, including later pages."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    samples = db.scalars(select(Sample).where(
+        Sample.batch_id == batch_id,
+        Sample.processing_status == "completed",
+    ).order_by(Sample.created_at, Sample.id)).all()
+    ids = [sample.id for sample in samples]
+    labels: dict[str, str] = {}
+    if ids:
+        for sid, label in db.execute(select(
+            SampleField.sample_id, SampleField.current_value,
+        ).where(
+            SampleField.sample_id.in_(ids), SampleField.field_key == "sample_id",
+        )):
+            labels[sid] = label or ""
+    return [{
+        "id": sample.id,
+        "label": labels.get(sample.id) or sample.external_sample_id or sample.id[:8],
+        "verified": sample.review_status == "verified",
+    } for sample in samples]
+
+
 @app.post("/api/batches/{batch_id}/export-selected.csv")
 def export_selected_csv(
     batch_id: str, payload: SelectiveExportRequest, db: Session = Depends(get_db)
