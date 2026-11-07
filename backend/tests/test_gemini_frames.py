@@ -21,6 +21,8 @@ def test_small_label_contract_preserves_identifiers():
     })
     assert value.sample_id == "00125767"
     assert value.serial_number == "My1207238"
+    assert value.overall_confidence == "medium"
+    assert "ambiguous" in value.confidence_reason
 
 
 def test_rejects_unexpected_model_keys():

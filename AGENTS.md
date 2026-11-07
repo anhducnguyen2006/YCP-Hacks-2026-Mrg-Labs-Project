@@ -37,3 +37,7 @@ Blank or inapplicable values must export as empty strings, never `N/A`. IDs, mac
 - Use environment variables for service configuration; never commit secrets.
 - Preserve the exact data contract above when adding models, templates, extraction, or export code.
 - Prefer focused tests beside the relevant feature or in the existing test directories.
+
+## Confidence contract
+
+Overall sample-level `ai_confidence` is a nullable, model-reported high/medium/low **subjective rating** with a short `ai_confidence_reason`. Never present it as calibrated probability. Existing records remain null until a separately authorized reanalysis. Human review remains required. Field-level numeric confidence must not be fabricated or derived from this sample-level value.

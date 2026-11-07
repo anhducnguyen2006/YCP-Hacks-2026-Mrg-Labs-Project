@@ -11,7 +11,9 @@ MRG Sample Scanner digitizes short rotation videos of cylindrical laboratory sam
 - Review: click a sample row to open the source video, all selected frame thumbnails, original/extracted values, and editable fields in a modal.
 - Review signals: green = human verified, yellow = needs verification, red = Gemini flagged ambiguity, gray = not applicable or no review required. **These are workflow signals, not calibrated model confidence percentages.**
 - Templates & Export: download either a blank seven-column template or real CSV records for a selected batch, including pages beyond the first 50. Exports use current corrected values; optional reviewed-only filter.
-- Live camera scanning, reliable resumable browser uploads, batch-wide searching/sorting, and full 800-sample throughput/accuracy validation are **not yet implemented**.
+- Each newly analyzed sample receives a Gemini-reported **high / medium / low** overall visual-confidence rating and a short explanation from the same inference request. This is subjective and **not a calibrated accuracy probability**. Already analyzed samples retain a null/unrated value; no automatic reanalysis.
+- The Samples page now supports batch-wide search, sort, confidence/status filtering, page selection, and confirmed removal of inactive samples. Deletion removes database records and their local sample-media directory. It is irreversible.
+- Live camera scanning, reliable resumable browser uploads, and full 800-sample throughput/accuracy validation are **not yet implemented**.
 
 This branch remains an integration MVP, not a production-validated scanner. Verify all AI-read fields.
 
@@ -76,3 +78,11 @@ Backend unit tests use synthetic images and do not call Gemini. A real end-to-en
 - `docker-compose.yml`: PostgreSQL, Redis, API, worker, and frontend.
 
 See `AGENTS.md` for the exact seven-column CSV field mapping.
+
+## Confidence interpretation
+
+Gemini reports one overall rating per sample in its existing selected-frame request, so there is no second inference call. High means clear, consistent readings across the applicable fields; medium means some visual ambiguity; low means important unreadable or contradictory text. A high rating is **not proof that any character is correct**. Calibrate these categories against technician-reviewed samples before relying on them for automatic acceptance. Dates received from the batch and inapplicable fields do not affect the rating. Older completed records are shown as **Not rated** and are never rescanned automatically.
+
+## Inventory
+
+Choose a batch in Samples to search and sort across the full batch, filter by AI confidence or processing status, select rows, and inspect/edit an individual record through Review. Deleting selected records requires confirmation and is refused if any selected sample has an active or queued analysis job. Exports previously downloaded are unaffected. Saved media is removed when record deletion succeeds. Keep backups if audit retention is necessary.
