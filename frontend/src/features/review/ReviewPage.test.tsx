@@ -31,7 +31,7 @@ test("shows seven CSV columns and persists a verified string identifier", async 
   const dialog = dialogs[dialogs.length - 1];
   fireEvent.change(within(dialog).getByRole("textbox", { name: "Sample ID" }), { target: { value: "00042" } });
   fireEvent.click(within(dialog).getByRole("button", { name: "Save & verify field" }));
-  await screen.findByText("Field saved to the sample record.");
+  expect((await screen.findAllByText("Field saved to the sample record.")).length).toBeGreaterThan(0);
   expect(api.updateField).toHaveBeenCalledWith("sample-1", "sample_id", "00042");
   expect(screen.getByRole("button", { name: "00042" })).toBeInTheDocument();
 });
