@@ -109,9 +109,9 @@ class CompactExtraction(BaseModel):
     label_type: Literal["small", "large", "unknown"]
     sample_id: str | None
     date_sampled: str | None
-    # Literal transcription from the label, retained for date verification.
-    # Optional for compatibility with older test fixtures.
-    date_sampled_raw: str | None = None
+    # Literal transcription must be supplied, even if null: the backend
+    # never silently trusts an ISO date without visual date evidence.
+    date_sampled_raw: str | None
     machine: str | None
     component: str | None
     serial_number: str | None

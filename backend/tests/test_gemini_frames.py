@@ -34,6 +34,7 @@ def test_rejects_unexpected_model_keys():
             "tracking_number": "125767",
             "sample_id": None,
             "date_sampled": None,
+            "date_sampled_raw": None,
             "machine": None,
             "component": None,
             "serial_number": None,
@@ -147,3 +148,19 @@ def test_interactions_sdk_503_is_detected(monkeypatch):
         ])
     assert sdk.interactions.create.call_count == 1
     assert sdk.close.called
+
+def test_requires_literal_date_transcription_even_when_no_date_is_visible():
+    with pytest.raises(ValidationError):
+        CompactExtraction.model_validate({
+            "label_type": "small",
+            "sample_id": "00125",
+            "date_sampled": "2016-09-28",
+            "machine": "UP 7246",
+            "component": "5 NGS",
+            "serial_number": None,
+            "reference_lube": None,
+            "uncertain_fields": [],
+            "unreadable_fields": [],
+            "overall_confidence": "high",
+            "confidence_reason": "Readable.",
+        })
