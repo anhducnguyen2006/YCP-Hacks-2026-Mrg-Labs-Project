@@ -195,7 +195,7 @@ export function SamplesPage() {
             <Table.Th>Actions</Table.Th>
           </Table.Tr></Table.Thead>
           <Table.Tbody>{rows.map((sample) => <Table.Tr key={sample.id} onClick={() => openInspector(sample.id)} style={{ cursor: "pointer" }} aria-label={`Inspect sample ${sample.external_sample_id || sample.id}`}>
-            <Table.Td>
+            <Table.Td onClick={(event) => event.stopPropagation()}>
               <Checkbox color="green" aria-label={`Select sample ${sample.external_sample_id || sample.id}`}
                 checked={selectedIds.includes(sample.id)}
                 onClick={(event) => event.stopPropagation()}
