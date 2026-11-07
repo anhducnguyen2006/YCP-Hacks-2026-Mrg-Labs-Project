@@ -3,13 +3,15 @@ import { useDisclosure, useReducedMotion } from "@mantine/hooks";
 import { ArrowRight, BookOpen, CheckCircle2, FileSpreadsheet, FlaskConical, FolderOpen, Layers, Plus, ScanLine, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useScrollReveal } from "./useScrollReveal";
+import { useWorkspaceSettings } from "../settings/WorkspaceSettings";
 
 export function HomePage() {
   const pageRef = useScrollReveal();
   const [instructionsOpen, instructions] = useDisclosure();
   const [batchOpen, batch] = useDisclosure();
   const reducedMotion = useReducedMotion();
-  const modalMotion = { transition: "fade" as const, duration: reducedMotion ? 0 : 200 };
+  const { preferences } = useWorkspaceSettings();
+  const modalMotion = { transition: "fade" as const, duration: reducedMotion || preferences.reduceMotion ? 0 : 200 };
 
   return (
     <Stack ref={pageRef} gap="xl" className="home-page home-motion">

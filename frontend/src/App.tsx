@@ -1,10 +1,14 @@
-import { AppShell, Badge, Box, Burger, Group, NavLink, Stack, Text, ThemeIcon, Title, UnstyledButton } from "@mantine/core";
+import { AppShell, Badge, Box, Burger, Group, NavLink, Stack, Text, ThemeIcon, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { Activity, FileSliders, FlaskConical, FolderKanban, ScanLine, Settings, ShieldCheck } from "lucide-react";
+import { FileSliders, FlaskConical, FolderKanban, ScanLine, Settings, ShieldCheck } from "lucide-react";
 import { NavLink as RouterLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { HomePage } from "./features/batches/HomePage";
 import { ReviewPage } from "./features/review/ReviewPage";
 import { ScanPage } from "./features/scan/ScanPage";
+import { SamplesPage } from "./features/samples/SamplesPage";
+import { TemplatesPage } from "./features/templates/TemplatesPage";
+import { SettingsPage } from "./features/settings/SettingsPage";
+import { WorkspaceSettingsProvider } from "./features/settings/WorkspaceSettings";
 
 const navigation = [
   { label: "Batches", icon: FolderKanban, to: "/" },
@@ -14,24 +18,6 @@ const navigation = [
   { label: "Templates & Export", icon: FileSliders, to: "/templates" },
   { label: "Settings", icon: Settings, to: "/settings" },
 ];
-
-function Page({ title, eyebrow, description }: { title: string; eyebrow: string; description: string }) {
-  return (
-    <Stack gap="xl">
-      <Box>
-        <Text className="eyebrow">{eyebrow}</Text>
-        <Title order={1} mt={6}>{title}</Title>
-        <Text c="dimmed" mt="sm" maw={640}>{description}</Text>
-      </Box>
-      <Box className="empty-panel">
-        <ThemeIcon size={56} radius="xl" variant="light" color="teal"><Activity size={26} /></ThemeIcon>
-        <Title order={3} mt="lg">Your workspace is ready</Title>
-        <Text c="dimmed" maw={440} ta="center">This foundation is in place. Connect your first batch to begin building the laboratory workflow.</Text>
-        <Badge mt="md" variant="light" color="teal">Coming in the next phase</Badge>
-      </Box>
-    </Stack>
-  );
-}
 
 function Layout() {
   const [opened, { toggle }] = useDisclosure();
@@ -68,12 +54,12 @@ function Layout() {
 }
 
 export function App() {
-  return <Routes><Route element={<Layout />}>
+  return <WorkspaceSettingsProvider><Routes><Route element={<Layout />}>
     <Route index element={<HomePage />} />
     <Route path="scan" element={<ScanPage />} />
-    <Route path="samples" element={<Page eyebrow="SAMPLE INVENTORY" title="Samples" description="Inspect extracted fields, edit values, and select samples for export." />} />
+    <Route path="samples" element={<SamplesPage />} />
     <Route path="review" element={<ReviewPage />} />
-    <Route path="templates" element={<Page eyebrow="CONFIGURATION" title="Templates & export" description="Configure label templates and CSV export profiles for your team." />} />
-    <Route path="settings" element={<Page eyebrow="WORKSPACE" title="Settings" description="Manage local workspace preferences and processing thresholds." />} />
-  </Route></Routes>;
+    <Route path="templates" element={<TemplatesPage />} />
+    <Route path="settings" element={<SettingsPage />} />
+  </Route></Routes></WorkspaceSettingsProvider>;
 }

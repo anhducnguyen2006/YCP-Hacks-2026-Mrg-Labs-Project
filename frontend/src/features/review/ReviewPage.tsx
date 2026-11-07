@@ -3,16 +3,10 @@ import { Alert, Badge, Box, Button, Group, Image, Loader, Modal, Paper, Select, 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Check, FileSpreadsheet, ImageOff, RefreshCw, ShieldCheck } from "lucide-react";
 import { api, type Sample, type SampleField } from "../../api";
+import { useSearchParams } from "react-router-dom";
+import { sampleColumns } from "../samples/columns";
 
-export const reviewColumns = [
-  { key: "sample_id", label: "Sample ID" },
-  { key: "date_sampled", label: "Date Sampled" },
-  { key: "date_received", label: "Date Received" },
-  { key: "machine", label: "Machine" },
-  { key: "component", label: "Component" },
-  { key: "serial_number", label: "Serial Number" },
-  { key: "reference_lube", label: "Refrence Lube" },
-] as const;
+export const reviewColumns = sampleColumns;
 
 function needsReview(field: SampleField) {
   return field.review_required && !field.reviewed;
@@ -43,9 +37,11 @@ function SampleInspector({ sample, onSaved }: { sample: Sample; onSaved: (sample
 }
 
 export function ReviewPage() {
-  const [batchId, setBatchId] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [params] = useSearchParams();
+  const [batchId, setBatchId] = useState<string | null>(params.get("batch"));
+  const requestedOffset = Number(params.get("offset") ?? 0);
+  const [offset, setOffset] = useState(Number.isInteger(requestedOffset) && requestedOffset >= 0 ? requestedOffset : 0);
+  const [selectedId, setSelectedId] = useState<string | null>(params.get("sample"));
   const [filter, setFilter] = useState<string | null>("all");
   const [saved, setSaved] = useState(false);
   const client = useQueryClient();

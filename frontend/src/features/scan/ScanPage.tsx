@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ArrowRight, CheckCircle2, FileVideo, Plus, RefreshCw, ScanLine, UploadCloud } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, type Sample } from "../../api";
+import { useWorkspaceSettings } from "../settings/WorkspaceSettings";
 
 function localDate() {
   const now = new Date();
@@ -11,11 +12,12 @@ function localDate() {
 }
 
 export function ScanPage() {
+  const { preferences } = useWorkspaceSettings();
   const client = useQueryClient();
   const [batchId, setBatchId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
-  const [date, setDate] = useState(localDate);
+  const [date, setDate] = useState(() => preferences.receivingDate || localDate());
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [sampleId, setSampleId] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export function ScanPage() {
     client.setQueryData(["sample", sample.id], sample);
     setSampleId(sample.id);
   };
-  const create = useMutation({ mutationFn: () => api.createBatch({ name: name.trim(), receiving_date: date, default_export_filename: "mrg-samples.csv" }), onSuccess: (batch) => { void client.invalidateQueries({ queryKey: ["batches"] }); setBatchId(batch.id); setCreating(false); setName(""); } });
+  const create = useMutation({ mutationFn: () => api.createBatch({ name: name.trim(), receiving_date: date, default_export_filename: preferences.exportFilename }), onSuccess: (batch) => { void client.invalidateQueries({ queryKey: ["batches"] }); setBatchId(batch.id); setCreating(false); setName(""); } });
   const upload = useMutation({ mutationFn: () => api.uploadSample(batchId!, file!), onSuccess: record });
   const analyze = useMutation({ mutationFn: () => api.analyze(sampleId!), onSuccess: record });
   const sample = useQuery({ queryKey: ["sample", sampleId], queryFn: () => api.sample(sampleId!), enabled: Boolean(sampleId), retry: false, refetchInterval: (query) => ["queued", "processing"].includes(query.state.data?.processing_status ?? "") ? 2000 : false });

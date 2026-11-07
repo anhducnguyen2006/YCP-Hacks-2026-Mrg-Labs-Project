@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
 import { api, type Sample } from "../../api";
 import { ReviewPage, reviewColumns } from "./ReviewPage";
+import { MemoryRouter } from "react-router-dom";
 
 vi.mock("../../api", () => ({ api: { batches: vi.fn(), samples: vi.fn(), updateField: vi.fn(), mediaUrl: (id: string) => `/api/media/${id}` } }));
 
@@ -17,7 +18,7 @@ test("shows seven CSV columns and persists a verified string identifier", async 
   vi.mocked(api.batches).mockResolvedValue([{ id: "batch-1", name: "Lab batch", receiving_date: "2026-11-07", default_export_filename: "samples.csv", created_at: "", updated_at: "" }]);
   vi.mocked(api.samples).mockResolvedValue([sample]);
   vi.mocked(api.updateField).mockImplementation(async () => ({ ...sample, fields: sample.fields.map((field) => field.field_key === "sample_id" ? { ...field, current_value: "00042", reviewed: true, review_required: false } : field) }));
-  render(<MantineProvider><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ReviewPage /></QueryClientProvider></MantineProvider>);
+  render(<MantineProvider><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><ReviewPage /></MemoryRouter></QueryClientProvider></MantineProvider>);
   await screen.findByText("Choose a batch to get started");
   fireEvent.click(screen.getByRole("textbox", { name: "Batch" }));
   fireEvent.click(await screen.findByRole("option", { name: "Lab batch" }));

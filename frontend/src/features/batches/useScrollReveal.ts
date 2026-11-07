@@ -1,9 +1,12 @@
 import { useEffect, useRef } from "react";
 import { useReducedMotion } from "@mantine/hooks";
+import { useWorkspaceSettings } from "../settings/WorkspaceSettings";
 
 export function useScrollReveal() {
   const ref = useRef<HTMLDivElement>(null);
-  const reducedMotion = useReducedMotion();
+  const systemReducedMotion = useReducedMotion();
+  const { preferences } = useWorkspaceSettings();
+  const reducedMotion = systemReducedMotion || preferences.reduceMotion;
 
   useEffect(() => {
     const root = ref.current;
