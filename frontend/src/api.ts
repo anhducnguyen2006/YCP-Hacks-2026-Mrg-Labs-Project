@@ -15,6 +15,7 @@ export type BatchStatus = {
   processing: number;
   completed: number;
   failed: number;
+  canceled?: number;
   needs_review: number;
   items: { id: string; status: string }[];
 };
@@ -82,6 +83,9 @@ export const api = {
   baseUrl: API_BASE_URL,
   batches: () => request<Batch[]>("/api/batches"),
   batchStatus: (batchId: string) => request<BatchStatus>(`/api/batches/${encodeURIComponent(batchId)}/status`),
+  cancelQueued: (batchId: string) => request<{ canceled: number }>(
+    `/api/batches/${encodeURIComponent(batchId)}/cancel-queued`, { method: "POST" }
+  ),
   batchQuality: (batchId: string) => request<QualityReport>(`/api/batches/${encodeURIComponent(batchId)}/quality`),
   verifySample: (sampleId: string) => request<Sample>(`/api/samples/${encodeURIComponent(sampleId)}/verify`, { method: "POST" }),
   reopenSample: (sampleId: string) => request<Sample>(`/api/samples/${encodeURIComponent(sampleId)}/reopen`, { method: "POST" }),
