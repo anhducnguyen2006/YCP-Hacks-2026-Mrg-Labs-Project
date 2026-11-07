@@ -23,8 +23,18 @@ Date Received is supplied by the batch and MUST NOT be inferred or returned.
 label_type must be small, large, or unknown. Dates: YYYY-MM-DD when unambiguous.
 Pay particular attention to visually similar handwritten 3/8, 6/8, 2/7.
 If uncertain, mark the corresponding field for manual review.
+For the entire sample, also report overall_confidence as "high", "medium", or "low".
+This is a SUBJECTIVE visual reading confidence, not a probability of correctness.
+HIGH: all applicable fields appear legible, consistent across frames, and no
+unresolved ambiguities. MEDIUM: one or more fields are difficult to read,
+but enough evidence supports a plausible transcription. LOW: key fields are
+unreadable, contradictory, truncated, or visibly ambiguous.
+Do not let human-provided Date Received or inapplicable fields influence confidence.
+Be conservative, especially with handwriting, digits, and abbreviated machine IDs.
+Provide confidence_reason (one short factual sentence citing visible uncertainty).
 Keys: label_type, sample_id, date_sampled, machine, component, serial_number,
-reference_lube, uncertain_fields, unreadable_fields.
+reference_lube, uncertain_fields, unreadable_fields, overall_confidence,
+confidence_reason.
 """
 
 

@@ -80,6 +80,8 @@ def process_sample(sample_id: str, job_id: str) -> None:
             batch = db.get(Batch, sample.batch_id)
             if not batch:
                 raise ValueError("Batch missing while saving results.")
+            sample.ai_confidence = extraction.overall_confidence
+            sample.ai_confidence_reason = extraction.confidence_reason
             sample.label_type = extraction.label_type
             sample.external_sample_id = extraction.sample_id
             existing = {

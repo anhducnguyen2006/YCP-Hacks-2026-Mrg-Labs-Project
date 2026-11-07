@@ -36,6 +36,8 @@ class Sample(Base):
     label_type: Mapped[str] = mapped_column(String(20), default="unknown")
     processing_status: Mapped[str] = mapped_column(String(20), default="queued")
     review_status: Mapped[str] = mapped_column(String(20), default="pending")
+    ai_confidence: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    ai_confidence_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

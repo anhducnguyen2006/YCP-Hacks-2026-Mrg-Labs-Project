@@ -46,6 +46,8 @@ export type Sample = {
   label_type: string;
   processing_status: string;
   review_status: string;
+  ai_confidence: "high" | "medium" | "low" | null;
+  ai_confidence_reason: string | null;
   created_at: string;
   updated_at: string;
   fields: SampleField[];

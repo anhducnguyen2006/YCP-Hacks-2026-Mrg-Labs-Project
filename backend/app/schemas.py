@@ -79,6 +79,8 @@ class SampleOut(BaseModel):
     label_type: str
     processing_status: str
     review_status: str
+    ai_confidence: Literal["high", "medium", "low"] | None
+    ai_confidence_reason: str | None
     created_at: datetime
     updated_at: datetime
     fields: list[FieldOut]
@@ -104,3 +106,5 @@ class CompactExtraction(BaseModel):
     reference_lube: str | None
     uncertain_fields: list[str]
     unreadable_fields: list[str]
+    overall_confidence: Literal["high", "medium", "low"]
+    confidence_reason: str
