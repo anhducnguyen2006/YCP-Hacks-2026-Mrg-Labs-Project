@@ -9,6 +9,16 @@ export type Batch = {
   updated_at: string;
 };
 
+export type BatchStatus = {
+  total: number;
+  queued: number;
+  processing: number;
+  completed: number;
+  failed: number;
+  needs_review: number;
+  items: { id: string; status: string }[];
+};
+
 export type SampleField = {
   id: string;
   field_key: string;
@@ -55,6 +65,17 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   baseUrl: API_BASE_URL,
   batches: () => request<Batch[]>("/api/batches"),
+  batchStatus: (batchId: string) => request<BatchStatus>(`/api/batches/${encodeURIComponent(batchId)}/status`),
+  exportBatch: async (batchId: string, reviewedOnly = false): Promise<Blob> => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/batches/${encodeURIComponent(batchId)}/export.csv?reviewed_only=${reviewedOnly}`
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.detail ?? `Export failed (${response.status})`);
+    }
+    return response.blob();
+  },
   createBatch: (payload: Pick<Batch, "name" | "receiving_date" | "default_export_filename">) =>
     request<Batch>("/api/batches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }),
   samples: (batchId: string, offset = 0) => request<Sample[]>(`/api/batches/${batchId}/samples?offset=${offset}&limit=50`),
