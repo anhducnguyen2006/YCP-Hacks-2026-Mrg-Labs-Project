@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 export type Preferences = { reduceMotion: boolean; exportFilename: string; receivingDate: string };
 export const defaultPreferences: Preferences = { reduceMotion: false, exportFilename: "mrg-samples.csv", receivingDate: "" };
 const storageKey = "mrg-workspace-preferences-v1";
-const Context = createContext({ preferences: defaultPreferences, save: (_value: Preferences): boolean => false });
+const Context = createContext<{ preferences: Preferences; save: (value: Preferences) => boolean }>({ preferences: defaultPreferences, save: () => false });
 
 function readPreferences(): Preferences {
   try {

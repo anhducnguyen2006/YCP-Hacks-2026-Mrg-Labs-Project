@@ -1,4 +1,4 @@
-import { AppShell, Badge, Box, Burger, Group, NavLink, Stack, Text, ThemeIcon, UnstyledButton } from "@mantine/core";
+import { AppShell, Badge, Box, Burger, Group, NavLink, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { FileSliders, FlaskConical, FolderKanban, ScanLine, Settings, ShieldCheck } from "lucide-react";
 import { NavLink as RouterLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
