@@ -149,11 +149,12 @@ Inspect recent service logs with `docker compose logs --tail=100 api worker`. Re
 GEMINI_MODEL=gemini-3.6-flash
 GEMINI_THINKING_LEVEL=minimal
 SELECTED_FRAME_COUNT=8
+DATE_DETAIL_CROP_COUNT=4
 ```
 
 Frame selection is local. Gemini is called only when analysis is queued (automatically by bulk upload or manually by the single-video workflow). The configured model can be changed if your account supports another model.
 
-The backend decodes up to 32 candidate frames using OpenCV and chooses the sharpest frame in each of 8 evenly distributed time bins. This method preserves coverage across the full rotation but does **not** guarantee a complete label view. Camera focus, glare, label curvature, and handwriting can still cause mistakes. The worker stores all selected frames, maintains record IDs as strings, and uses the batch receiving date rather than asking Gemini to infer it.
+The backend decodes up to 32 candidate frames using OpenCV and chooses the sharpest frame in each of 8 evenly distributed time bins. For new scans, it also creates up to four center-detail crops from those selected frames and includes them in the same Gemini request; this can improve legibility of small handwriting but does not actually detect the Date box. It increases image token consumption without increasing the number of model requests. Set `DATE_DETAIL_CROP_COUNT=0` in `.env` to turn off the experiment. This method preserves coverage across the full rotation but does **not** guarantee a complete label view. Camera focus, glare, label curvature, and handwriting can still cause mistakes. The worker stores all selected frames, maintains record IDs as strings, and uses the batch receiving date rather than asking Gemini to infer it.
 
 **Critical quality warning:** Real sample videos have been tested, including a five-sample walkthrough, but handwriting and dates can still be misread (for example, year digits). These limited tests do not establish statistical accuracy. Technician verification remains mandatory.
 
@@ -191,7 +192,7 @@ See `AGENTS.md` for the exact seven-column CSV field mapping.
 
 Handwritten laboratory dates require special treatment: a model may correctly read the sample ID while misinterpreting the day, month or abbreviated year. For **newly processed samples**, the Gemini call now returns both a literal date transcription (`date_sampled_raw`) and an optional ISO candidate. The backend converts a clearly transcribed US `MM/DD/YY` date into `YYYY-MM-DD`, or uses an unambiguous four-digit year. A single trailing digit (e.g. `09/28/6`) is interpreted using the batch receiving year **only when the final digit matches**; this is provisional and flagged. Incomplete years containing question marks remain blank. No additional Gemini API request is made.
 
-If the literal transcription conflicts with Gemini's suggested ISO date, the sample is flagged and confidence is capped at low; shortened years are flagged at least medium. Dates more than five years before receipt are flagged, **not automatically replaced**. A missing raw date does not justify trusting a guessed ISO date, and impossible or post-receipt dates remain blank for review.
+If the literal transcription conflicts with Gemini's suggested ISO date, the sample is flagged and confidence is capped at low; shortened years are flagged at least medium. Dates more than five years before receipt are flagged, **not automatically replaced**. A missing raw date does not justify trusting a guessed ISO date, and impossible or post-receipt dates remain blank for review. Even the literal transcription can be mistaken (as it was for sample 125767); crop-based visual evidence is experimental and must be validated on actual videos.
 
 The UI saves the model's literal date evidence and normalization notes in the **Date Sampled review reason**. Click a sample in **Samples** and choose **Edit / verify** for Date Sampled to see that evidence. These are guardrails, **not a guarantee that Gemini visually transcribed the date correctly**. Inspect the original video/keyframes, especially the Date area, before approving a sample. Historical scans remain unchanged: the new rules run only during new analysis. Do not bulk-convert 2016→2026 without checking the source.
 

@@ -49,3 +49,7 @@ Navigation is intentionally researcher-focused: Scan, Samples, Export and Settin
 ## Date extraction contract
 
 The Gemini response includes `date_sampled_raw` (literal visual evidence) and `date_sampled` (ISO candidate only if fully legible). The backend independently normalizes clear US month/day/year and four-digit ISO dates; shortened years are provisional, incomplete dates remain blank, and contradictory or implausible dates are flagged. Preserve the literal evidence in the Date Sampled field's review reason, cap overall AI confidence when evidence conflicts, and never silently rewrite existing manually verified samples. Do not infer dates from Sample ID, RN, the current clock, or a batch-wide pattern. Retain the `date_sampled` database field and `reference_lube` internal key for backwards compatibility.
+
+## Detail-crop experiment
+
+Default `DATE_DETAIL_CROP_COUNT=4` includes center-region native-resolution crops for up to four selected frames in the same Gemini request. This is not a date detector; extra images can increase token use and remain insufficient if the date is on the edge or out of focus. A/B test with `DATE_DETAIL_CROP_COUNT=0` using manually verified videos. Do not claim improved date accuracy based on tests with synthetic frames.

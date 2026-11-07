@@ -47,7 +47,8 @@ def _encode_detail(frame: np.ndarray) -> bytes:
     y0, y1 = round(height * 0.24), round(height * 0.76)
     detail = frame[y0:y1, x0:x1]
     if min(detail.shape[:2]) < 80:
-        raise InvalidVideo("Tube detail region is too small.")
+        # Tiny but valid videos should still be analyzed using original frames.
+        return _encode(frame)
     ok, output = cv2.imencode(".jpg", detail, [cv2.IMWRITE_JPEG_QUALITY, 94])
     if not ok:
         raise InvalidVideo("Could not encode tube detail crop.")
