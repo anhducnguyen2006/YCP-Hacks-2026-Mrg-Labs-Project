@@ -16,6 +16,7 @@ export type BatchStatus = {
   completed: number;
   failed: number;
   canceled?: number;
+  paused?: number;
   needs_review: number;
   items: { id: string; status: string }[];
 };
@@ -83,6 +84,10 @@ export const api = {
   baseUrl: API_BASE_URL,
   batches: () => request<Batch[]>("/api/batches"),
   batchStatus: (batchId: string) => request<BatchStatus>(`/api/batches/${encodeURIComponent(batchId)}/status`),
+  analysisGate: () => request<{ hold: null | { reason: "quota" | "unavailable"; seconds_remaining: number } }>("/api/analysis-gate"),
+  resumePaused: (batchId: string) => request<{ resumed: number; failed: number }>(
+    `/api/batches/${encodeURIComponent(batchId)}/resume-paused`, { method: "POST" }
+  ),
   cancelQueued: (batchId: string) => request<{ canceled: number }>(
     `/api/batches/${encodeURIComponent(batchId)}/cancel-queued`, { method: "POST" }
   ),
