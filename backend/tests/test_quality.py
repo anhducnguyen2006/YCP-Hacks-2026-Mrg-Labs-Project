@@ -59,13 +59,13 @@ def test_year_outlier_unreadable_fields_and_verification(client):
 
     filtered = http.get(f"/api/batches/{batch_id}/inventory?flagged_only=true")
     assert filtered.status_code == 200
-    assert filtered.json()["total"] == 5  # sample IDs and machine fields are also blank
+    assert filtered.json()["total"] == 2  # blank does not mean unreadable
 
     assert http.post(f"/api/samples/{samples[3]}/verify").status_code == 200
     detail = http.get(f"/api/samples/{samples[3]}").json()
     assert detail["review_status"] == "verified"
     filtered = http.get(f"/api/batches/{batch_id}/inventory?flagged_only=true")
-    assert filtered.json()["total"] == 4
+    assert filtered.json()["total"] == 1
     assert http.post(f"/api/samples/{samples[3]}/reopen").json()["review_status"] == "pending"
 
     # Editing after verification revokes sample-level verification.

@@ -160,7 +160,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
             setNotice(null);
           }}>Clear unuploaded</Button>
           <Button size="xs" color="green" leftSection={<Files size={16} />} loading={running}
-            disabled={running || !items.some((item) => item.state === "ready")}
+            disabled={running || paused || !items.some((item) => item.state === "ready")}
             onClick={() => void runQueue()}>Upload & analyze</Button>
           {running && <Button variant="light" color="yellow" size="xs"
             leftSection={<Pause size={14} />}

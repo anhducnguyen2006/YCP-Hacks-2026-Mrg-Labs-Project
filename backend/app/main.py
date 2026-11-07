@@ -198,7 +198,6 @@ def export_selected_csv(
     )).all()
     if len(samples) != len(ids):
         raise HTTPException(422, "Selected samples must all belong to this batch.")
-    by_id = {sample.id: sample for sample in samples}
     if any(sample.processing_status != "completed" for sample in samples):
         raise HTTPException(422, "Only completed samples may be exported.")
     if payload.verified_only and any(sample.review_status != "verified" for sample in samples):
