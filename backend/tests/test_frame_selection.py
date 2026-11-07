@@ -28,6 +28,12 @@ def test_extracts_time_distributed_frames(tmp_path):
     )
     assert result[-1].timestamp_seconds > result[0].timestamp_seconds
     assert all(frame.jpeg.startswith(b"\xff\xd8") for frame in result)
+    assert all(frame.detail_jpeg is not None for frame in result)
+    assert all(frame.detail_jpeg.startswith(b"\xff\xd8") for frame in result)
+    whole = cv2.imdecode(np.frombuffer(result[0].jpeg, dtype=np.uint8), cv2.IMREAD_COLOR)
+    detail = cv2.imdecode(np.frombuffer(result[0].detail_jpeg, dtype=np.uint8), cv2.IMREAD_COLOR)
+    assert detail.shape[0] < whole.shape[0]
+    assert detail.shape[1] < whole.shape[1]
 
 
 def test_rejects_non_video(tmp_path):

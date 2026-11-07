@@ -36,6 +36,10 @@ overall confidence. In particular, distinguish 10/05 versus 04/28 and
 handwritten 2/6, 0/6, 3/8 and 1/7 carefully.
 The backend independently normalizes abbreviated years from date_sampled_raw
 and flags any conflict or implausible date; do NOT invent a full year here.
+Any additional center-detail images following the full frames are crops
+from the SAME rotation frames, not different samples. Compare them against
+the originals when reading month/day/year, and do not copy a date from a
+different handwriting line. If uncertain, use null and flag date_sampled.
 If uncertain, mark date_sampled for manual review.
 For the entire sample, also report overall_confidence as "high", "medium", or "low".
 This is a SUBJECTIVE visual reading confidence, not a probability of correctness.
@@ -90,6 +94,28 @@ def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtractio
         }
         for frame in frames
     ]
+    # Supplemental native-resolution center crops from evenly spaced frames:
+    # more image tokens, but still ONE model call per video.
+    crop_count = max(0, min(8, settings.date_detail_crop_count, len(frames)))
+    detail_images = []
+    if crop_count:
+        for index in range(crop_count):
+            pos = min(len(frames) - 1, ((2 * index + 1) * len(frames)) // (2 * crop_count))
+            crop = frames[pos].detail_jpeg
+            if crop:
+                detail_images.append({
+                    "type": "image",
+                    "data": base64.b64encode(crop).decode("ascii"),
+                    "mime_type": "image/jpeg",
+                })
+    image_input = [{"type": "text", "text": PROMPT}, *images]
+    if detail_images:
+        image_input += [
+            {"type": "text", "text":
+                "Center-detail crops of the SAME earlier frames in timestamp order, "
+                "not additional samples. Use these to verify handwritten dates."},
+            *detail_images,
+        ]
     # A single 429 must not keep the only worker busy for five minutes while
     # SDK retries sleep. Retrying a project-level quota limit is a policy/UI
     # decision made after checking usage, not part of one video extraction.
@@ -102,7 +128,7 @@ def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtractio
     try:
         interaction = client.interactions.create(
             model=settings.gemini_model,
-            input=[{"type": "text", "text": PROMPT}, *images],
+            input=image_input,
             response_format={
                 "type": "text",
                 "mime_type": "application/json",

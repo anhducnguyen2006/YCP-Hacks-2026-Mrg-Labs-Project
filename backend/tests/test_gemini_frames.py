@@ -54,6 +54,7 @@ def test_request_has_no_automatic_retries_and_a_bounded_timeout(monkeypatch):
     monkeypatch.setattr(gemini_frames, "get_settings", lambda: SimpleNamespace(
         gemini_api_key="local-fake-key", gemini_model="gemini-3.6-flash",
         gemini_thinking_level="minimal", gemini_request_timeout_seconds=120,
+        date_detail_crop_count=4,
     ))
     sdk = MagicMock()
     sdk.interactions.create.return_value.output_text = CompactExtraction(
@@ -87,6 +88,7 @@ def test_http_429_is_reported_as_rate_limit_without_retry(monkeypatch):
     monkeypatch.setattr(gemini_frames, "get_settings", lambda: SimpleNamespace(
         gemini_api_key="local-fake-key", gemini_model="gemini-3.6-flash",
         gemini_thinking_level="minimal", gemini_request_timeout_seconds=120,
+        date_detail_crop_count=4,
     ))
     sdk = MagicMock()
     sdk.interactions.create.side_effect = errors.ClientError(
@@ -112,6 +114,7 @@ def test_interactions_sdk_429_is_detected(monkeypatch):
     monkeypatch.setattr(gemini_frames, "get_settings", lambda: SimpleNamespace(
         gemini_api_key="fake", gemini_model="gemini-3.6-flash",
         gemini_thinking_level="minimal", gemini_request_timeout_seconds=120,
+        date_detail_crop_count=4,
     ))
     sdk = MagicMock()
     RateLimitError = type("RateLimitError", (Exception,), {})
@@ -136,6 +139,7 @@ def test_interactions_sdk_503_is_detected(monkeypatch):
     monkeypatch.setattr(gemini_frames, "get_settings", lambda: SimpleNamespace(
         gemini_api_key="fake", gemini_model="gemini-3.6-flash",
         gemini_thinking_level="minimal", gemini_request_timeout_seconds=120,
+        date_detail_crop_count=4,
     ))
     sdk = MagicMock()
     InternalServerError = type("InternalServerError", (Exception,), {})
@@ -164,3 +168,39 @@ def test_requires_literal_date_transcription_even_when_no_date_is_visible():
             "overall_confidence": "high",
             "confidence_reason": "Readable.",
         })
+
+
+def test_detail_crops_share_one_gemini_request(monkeypatch):
+    """Four extra crop images must share the existing Interactions request."""
+    import base64
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    from app import gemini_frames
+    from app.frame_selection import SelectedFrame
+
+    monkeypatch.setattr(gemini_frames, "get_settings", lambda: SimpleNamespace(
+        gemini_api_key="fake", gemini_model="gemini-3.6-flash",
+        gemini_thinking_level="minimal", gemini_request_timeout_seconds=120,
+        date_detail_crop_count=4,
+    ))
+    sdk = MagicMock()
+    sdk.interactions.create.return_value.output_text = CompactExtraction(
+        label_type="small", sample_id="125767", date_sampled=None,
+        date_sampled_raw="09/28/26", machine="UP7246", component="5 NGS",
+        serial_number="MY1207238", reference_lube=None,
+        uncertain_fields=[], unreadable_fields=[],
+        overall_confidence="high", confidence_reason="Date legible.",
+    ).model_dump_json()
+    monkeypatch.setattr(gemini_frames.genai, "Client", lambda **kwargs: sdk)
+    frames = [
+        SelectedFrame(i, b"full", 4.0, detail_jpeg=f"crop{i}".encode())
+        for i in range(8)
+    ]
+    gemini_frames.analyze_selected_frames(frames)
+    assert sdk.interactions.create.call_count == 1
+    payload = sdk.interactions.create.call_args.kwargs["input"]
+    images = [item for item in payload if item["type"] == "image"]
+    assert len(images) == 12
+    assert [base64.b64decode(item["data"]) for item in images[-4:]] == [
+        b"crop1", b"crop3", b"crop5", b"crop7",
+    ]

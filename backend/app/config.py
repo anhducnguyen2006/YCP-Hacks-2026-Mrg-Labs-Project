@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     gemini_thinking_level: str = "minimal"
     gemini_request_timeout_seconds: int = 120
     selected_frame_count: int = 8
+    date_detail_crop_count: int = 4
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
