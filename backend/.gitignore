@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+debug_frames/
+extracted_ocr_frames/
+*.mp4
