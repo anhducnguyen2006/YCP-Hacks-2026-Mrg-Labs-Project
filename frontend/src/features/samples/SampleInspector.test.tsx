@@ -6,7 +6,7 @@ import { api, type Sample } from "../../api";
 import { SampleInspector } from "./SampleInspector";
 
 vi.mock("../../api", () => ({
-  api: { updateField: vi.fn(), mediaUrl: (id: string) => `/api/media/${id}` },
+  api: { updateField: vi.fn(), verifySample: vi.fn(), reopenSample: vi.fn(), mediaUrl: (id: string) => `/api/media/${id}` },
 }));
 
 test("edits a sample field inline, preserving text identifiers and notifying the table", async () => {
@@ -30,10 +30,30 @@ test("edits a sample field inline, preserving text identifiers and notifying the
   render(<MantineProvider><QueryClientProvider client={new QueryClient()}>
     <SampleInspector sample={sample} onSaved={onSaved} />
   </QueryClientProvider></MantineProvider>);
-  fireEvent.click(screen.getByRole("button", { name: "Edit / verify" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit field" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Sample ID" }), { target: { value: "00042" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save & verify field" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save change" }));
   await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
   expect(api.updateField).toHaveBeenCalledWith("sample-1", "sample_id", "00042");
   expect(onSaved).toHaveBeenCalledTimes(1);
+});
+
+test("verifies the entire sample in a single explicit action", async () => {
+  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  const sample: Sample = {
+    id: "sample-2", batch_id: "batch-1", external_sample_id: "00010",
+    label_type: "small", processing_status: "completed",
+    review_status: "pending", ai_confidence: "medium", ai_confidence_reason: null,
+    created_at: "", updated_at: "", fields: [], media: [], latest_job: null,
+  };
+  vi.mocked(api.verifySample).mockResolvedValue({ ...sample, review_status: "verified" });
+  const onSaved = vi.fn();
+  render(<MantineProvider><QueryClientProvider client={new QueryClient()}>
+    <SampleInspector sample={sample} onSaved={onSaved}
+      qualityFlags={[{ field_key: "date_sampled", code: "year_outlier", message: "Check year" }]} />
+  </QueryClientProvider></MantineProvider>);
+  expect(screen.getByText("Check year")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Verify entire sample" }));
+  await waitFor(() => expect(api.verifySample).toHaveBeenCalledWith("sample-2"));
+  expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ review_status: "verified" }));
 });

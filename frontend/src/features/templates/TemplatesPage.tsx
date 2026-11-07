@@ -68,8 +68,8 @@ export function TemplatesPage() {
             data={(batches.data ?? []).map((batch) => ({ value: batch.id, label: batch.name }))}
             value={batchId} onChange={(value) => { setBatchId(value); setExportError(null); }}
             disabled={batches.isLoading || batches.isError} />
-          <Switch color="green" label="Export only samples with no outstanding field reviews"
-            description="Otherwise includes every completed sample, even those not yet verified."
+          <Switch color="green" label="Export only samples marked Verified"
+            description="Verify an entire sample once in Samples; otherwise, export includes all completed records."
             checked={reviewedOnly} onChange={(event) => setReviewedOnly(event.currentTarget.checked)} />
         </Stack>
         <Stack gap="sm" justify="center">

@@ -51,6 +51,7 @@ test("opens an editable inspector directly from the Samples inventory", async ()
 });
 
 test("selects all current-page samples and closes the inspector in one action", async () => {
+  vi.mocked(api.batchQuality).mockResolvedValue({ consensus_year: null, scanned: 1, flags: {} });
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   const sample: Sample = {
     id: "sample-1", batch_id: "batch-1", external_sample_id: "00123",
