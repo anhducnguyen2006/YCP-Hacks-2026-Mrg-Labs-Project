@@ -43,6 +43,26 @@ class GeminiRateLimitError(RuntimeError):
     """Gemini refused the request because this project is rate/quota limited."""
 
 
+class GeminiUnavailableError(RuntimeError):
+    """Gemini is temporarily unavailable due to service capacity."""
+
+
+def _is_status(exc: Exception, code: int) -> bool:
+    """Recognize both standard google.genai and Interactions SDK errors.
+
+    Interactions wraps some API errors in google.genai._gaos exceptions that
+    are NOT subclasses of google.genai.errors.APIError. Keep detection narrow
+    and avoid depending on private SDK module imports.
+    """
+    if isinstance(exc, errors.APIError):
+        return exc.code == code
+    if code == 429 and type(exc).__name__ == "RateLimitError":
+        return "429" in str(exc) or "rate limit" in str(exc).lower()
+    if code == 503 and type(exc).__name__ == "InternalServerError":
+        return "503" in str(exc) or "service_unavailable" in str(exc).lower()
+    return False
+
+
 def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtraction:
     if not frames:
         raise ValueError("Cannot analyze an empty set of frames.")
@@ -78,11 +98,17 @@ def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtractio
             generation_config={"thinking_level": settings.gemini_thinking_level},
             timeout=settings.gemini_request_timeout_seconds,
         )
-    except errors.APIError as exc:
-        if exc.code == 429:
+    except Exception as exc:
+        # The Interactions API has a separate SDK exception hierarchy for 429
+        # and 503. Do not accidentally turn these into opaque "analysis failed".
+        if _is_status(exc, 429):
             raise GeminiRateLimitError(
-                "Gemini rate or quota limit (HTTP 429). Check Google AI Studio usage "
-                "and retry after capacity becomes available."
+                "Gemini rate or quota limit (HTTP 429). Check the selected "
+                "Google AI project and retry after its quota resets."
+            ) from exc
+        if _is_status(exc, 503):
+            raise GeminiUnavailableError(
+                "Gemini model capacity unavailable (HTTP 503). Try again later."
             ) from exc
         raise
     finally:

@@ -97,3 +97,51 @@ def test_http_429_is_reported_as_rate_limit_without_retry(monkeypatch):
         ])
     assert sdk.interactions.create.call_count == 1
     assert sdk.close.called
+
+def test_interactions_sdk_429_is_detected(monkeypatch):
+    """Interactions emits RateLimitError, not google.genai.errors.ClientError."""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from app import gemini_frames
+    from app.frame_selection import SelectedFrame
+
+    monkeypatch.setattr(gemini_frames, "get_settings", lambda: SimpleNamespace(
+        gemini_api_key="fake", gemini_model="gemini-3.6-flash",
+        gemini_thinking_level="minimal", gemini_request_timeout_seconds=120,
+    ))
+    sdk = MagicMock()
+    RateLimitError = type("RateLimitError", (Exception,), {})
+    sdk.interactions.create.side_effect = RateLimitError(
+        "Error code: 429 - Rate limit exceeded (20 requests per day)")
+    monkeypatch.setattr(gemini_frames.genai, "Client", lambda **kwargs: sdk)
+    with pytest.raises(gemini_frames.GeminiRateLimitError, match="HTTP 429"):
+        gemini_frames.analyze_selected_frames([
+            SelectedFrame(timestamp_seconds=0.25, jpeg=b"some-jpeg", sharpness=2.5)
+        ])
+    assert sdk.interactions.create.call_count == 1
+    assert sdk.close.called
+
+
+def test_interactions_sdk_503_is_detected(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from app import gemini_frames
+    from app.frame_selection import SelectedFrame
+
+    monkeypatch.setattr(gemini_frames, "get_settings", lambda: SimpleNamespace(
+        gemini_api_key="fake", gemini_model="gemini-3.6-flash",
+        gemini_thinking_level="minimal", gemini_request_timeout_seconds=120,
+    ))
+    sdk = MagicMock()
+    InternalServerError = type("InternalServerError", (Exception,), {})
+    sdk.interactions.create.side_effect = InternalServerError(
+        "Error code: 503 - service_unavailable")
+    monkeypatch.setattr(gemini_frames.genai, "Client", lambda **kwargs: sdk)
+    with pytest.raises(gemini_frames.GeminiUnavailableError, match="HTTP 503"):
+        gemini_frames.analyze_selected_frames([
+            SelectedFrame(timestamp_seconds=0.25, jpeg=b"some-jpeg", sharpness=2.5)
+        ])
+    assert sdk.interactions.create.call_count == 1
+    assert sdk.close.called

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db import SessionLocal
 from app.frame_selection import select_frames
-from app.gemini_frames import GeminiRateLimitError, analyze_selected_frames
+from app.gemini_frames import GeminiRateLimitError, GeminiUnavailableError, analyze_selected_frames
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia
 from app.schemas import FIELD_KEYS
 
@@ -147,6 +147,9 @@ def process_sample(sample_id: str, job_id: str) -> None:
                     "Gemini API rate/quota limit (HTTP 429). Retry this sample after "
                     "capacity becomes available; no re-upload required."
                     if isinstance(exc, GeminiRateLimitError) else
+                    "Gemini is temporarily overloaded (HTTP 503). Retry this sample "
+                    "later; the uploaded video is retained."
+                    if isinstance(exc, GeminiUnavailableError) else
                     f"Analysis failed ({type(exc).__name__}). Check worker logs."
                 )
             db.commit()
