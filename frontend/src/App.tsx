@@ -8,6 +8,7 @@ import { TemplatesPage } from "./features/templates/TemplatesPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { WorkspaceSettingsProvider } from "./features/settings/WorkspaceSettings";
 import { HomePage } from "./features/batches/HomePage";
+import { ThemeSwitch } from "./components/ThemeSwitch";
 
 const navigation = [
   { label: "Welcome", icon: House, to: "/welcome" },
@@ -34,11 +35,15 @@ function Layout() {
           <Group gap="sm">
             <Burger hiddenFrom="sm" opened={opened} onClick={toggle} size="sm" />
             <UnstyledButton component={RouterLink} to="/welcome" className="brand">
-              <img src="/mrg-laboratories.png" alt="MRG Laboratories" className="brand-logo" />
+              <span className="brand-logo-pair" role="img" aria-label="MRG Laboratories">
+                <img src="/mrg-laboratories.png" alt="" className="brand-logo brand-logo-light" />
+                <img src="/mrg-laboratories-dark-clean.svg" alt="" className="brand-logo brand-logo-dark" />
+              </span>
               <Text className="brand-app-name" fw={700}>Sample Label Digitizer</Text>
             </UnstyledButton>
           </Group>
           <Group gap="sm">
+            <ThemeSwitch />
             <Button variant="subtle" color="gray" size="sm" leftSection={<HelpCircle size={18} />}
               onClick={help.open} aria-label="How to use Sample Scanner">Help</Button>
             <Badge color="green" variant="light" leftSection={<span className="status-dot" />}>Local workspace</Badge>
