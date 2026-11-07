@@ -41,3 +41,7 @@ Blank or inapplicable values must export as empty strings, never `N/A`. IDs, mac
 ## Confidence contract
 
 Overall sample-level `ai_confidence` is a nullable, model-reported high/medium/low **subjective rating** with a short `ai_confidence_reason`. Never present it as calibrated probability. Existing records remain null until a separately authorized reanalysis. Human review remains required. Field-level numeric confidence must not be fabricated or derived from this sample-level value.
+
+## Current interface
+
+Navigation is intentionally researcher-focused: Scan, Samples, Export and Settings. The header Help button explains the workflow. The old Review route remains as a backwards-compatible redirect into Samples; do not add a duplicate Review or Batches navigation entry unless specifically requested. Sample review/edit is inline inside the Samples detail modal. Export prominently offers a real batch CSV download, with format and label mapping as secondary reference content.

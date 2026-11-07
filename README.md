@@ -4,13 +4,13 @@ MRG Sample Scanner digitizes short rotation videos of cylindrical laboratory sam
 
 ## Current implementation
 
-- React + Mantine workspaces: Batches, Scan, Samples, Review, Templates & Export, Settings.
+- React + Mantine researcher workspace: Scan, Samples, Export, Settings, plus a header Help guide.
 - FastAPI HTTP API backed by PostgreSQL; media stored on the shared Docker volume.
 - Redis/RQ worker performs local frame extraction and sends up to eight selected images to Gemini in one request per sample.
 - Scan supports single-video upload/analysis **and** drag-and-drop multi-video intake (up to 800 videos, 50 MB each, two concurrent uploads). Bulk uploads automatically enqueue analysis. Keep the browser page open until upload requests finish; already queued analyses continue in the worker.
-- Review: click a sample row to open the source video, all selected frame thumbnails, original/extracted values, and editable fields in a modal.
+- Samples: click a row to open the source video, all selected frame thumbnails, original/extracted values, and inline editable fields in a modal. The former Review page redirects to Samples for saved links.
 - Review signals: green = human verified, yellow = needs verification, red = Gemini flagged ambiguity, gray = not applicable or no review required. **These are workflow signals, not calibrated model confidence percentages.**
-- Templates & Export: download either a blank seven-column template or real CSV records for a selected batch, including pages beyond the first 50. Exports use current corrected values; optional reviewed-only filter.
+- Export: download real completed CSV records for a selected batch from the primary action card. A blank seven-column template and label mapping are available as secondary reference information.
 - Each newly analyzed sample receives a Gemini-reported **high / medium / low** overall visual-confidence rating and a short explanation from the same inference request. This is subjective and **not a calibrated accuracy probability**. Already analyzed samples retain a null/unrated value; no automatic reanalysis.
 - The Samples page now supports batch-wide search, sort, confidence/status filtering, page selection, and confirmed removal of inactive samples. Deletion removes database records and their local sample-media directory. It is irreversible.
 - Live camera scanning, reliable resumable browser uploads, and full 800-sample throughput/accuracy validation are **not yet implemented**.
@@ -31,7 +31,7 @@ Requires Docker Desktop and a Gemini API key.
    docker compose up --build
    ```
 4. Open http://localhost:5173. API docs: http://localhost:8000/docs.
-5. From **Scan**, create or select a batch, then either drop several MOV/MP4/WebM videos into the bulk uploader and select **Upload & analyze**, or use the manual single-video upload/analyze controls. From **Review**, click any sample row to inspect and edit it. **Templates & Export** downloads the completed sample records.
+5. From **Scan**, create or select a batch, then either drop several MOV/MP4/WebM videos into the bulk uploader and select **Upload & analyze**, or use the manual single-video upload/analyze controls. From **Samples**, click any sample row to inspect and edit it. **Export** downloads the completed sample records.
 
 **Important:** Stop the old or temporary project's services first if ports 5173, 8000, 5432 or 6379 are occupied. This repo's .env must be used from the repo root. Container paths use the shared `sample_media` Docker volume.
 
@@ -85,4 +85,9 @@ Gemini reports one overall rating per sample in its existing selected-frame requ
 
 ## Inventory
 
-Choose a batch in Samples to search and sort across the full batch, filter by AI confidence or processing status, select rows, and inspect/edit an individual record through Review. Deleting selected records requires confirmation and is refused if any selected sample has an active or queued analysis job. Exports previously downloaded are unaffected. Saved media is removed when record deletion succeeds. Keep backups if audit retention is necessary.
+Choose a batch in Samples to search and sort across the full batch, filter by AI confidence or processing status, select rows, and inspect/edit an individual record through Samples. Deleting selected records requires confirmation and is refused if any selected sample has an active or queued analysis job. Exports previously downloaded are unaffected. Saved media is removed when record deletion succeeds. Keep backups if audit retention is necessary.
+
+## Researcher-focused workspace
+
+The default route opens **Scan**, where batch creation and sample intake already live. **Samples** combines batch-wide search, sorting, confidence filters, multi-selection and verification; clicking any row opens a video/frame gallery with inline field corrections. **Export** places the real CSV download first and keeps the blank template and label mapping as optional reference material. A header **Help** button describes the three-step workflow. Historical links to `/review?batch=...&sample=...` redirect to the Samples inspector without changing stored data.
+
