@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Alert, Badge, Box, Button, Group, Image, Loader, Modal, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, ThemeIcon, Title } from "@mantine/core";
+import { Alert, Badge, Box, Button, Group, Loader, Modal, Paper, Select, SimpleGrid, Stack, Table, Text, TextInput, ThemeIcon, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Check, FileSpreadsheet, ImageOff, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertCircle, Check, FileSpreadsheet, RefreshCw, ShieldCheck } from "lucide-react";
 import { api, type Sample, type SampleField } from "../../api";
 import { useSearchParams } from "react-router-dom";
 import { sampleColumns } from "../samples/columns";
+import { FrameGallery } from "./FrameGallery";
 
 export const reviewColumns = sampleColumns;
 
@@ -30,10 +31,8 @@ function FieldCorrection({ sample, field, label, onSaved }: { sample: Sample; fi
 }
 
 function SampleInspector({ sample, onSaved }: { sample: Sample; onSaved: (sample: Sample) => void }) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const image = sample.media.find((media) => media.media_type === "keyframe");
   const video = sample.media.find((media) => media.media_type === "video");
-  return <Paper withBorder radius="lg" p="xl"><Group justify="space-between" mb="lg"><Box><Title order={3}>Verify sample</Title><Text size="sm" c="dimmed">Compare the source label with the extracted values.</Text></Box><Badge color="gray">{sample.label_type} label</Badge></Group><SimpleGrid cols={{ base: 1, lg: 2 }} spacing="xl"><Stack><Text fw={700} size="sm">Source label</Text>{image && !imageFailed ? <a href={api.mediaUrl(image.id)} target="_blank" rel="noreferrer" className="review-image-link"><Image src={api.mediaUrl(image.id)} alt="Extracted frame of the selected sample label. Open full image to inspect." fit="contain" h={320} onError={() => setImageFailed(true)} /><Text size="xs" ta="center" mt="xs">Open full image ↗</Text></a> : <Box className="review-image-empty"><ImageOff size={30} /><Text size="sm">{imageFailed ? "Label image could not be loaded." : "No label image available yet."}</Text></Box>}{video && <video key={video.id} className="review-video" controls preload="metadata" src={api.mediaUrl(video.id)} aria-label="Original sample rotation video" />}<Text size="xs" c="dimmed">Large labels leave Serial Number blank. Small labels leave Refrence Lube blank. Date Received comes from the batch receiving date.</Text></Stack><Stack gap="sm">{reviewColumns.map(({ key, label }) => { const field = sample.fields.find((item) => item.field_key === key); return field ? <FieldCorrection key={`${sample.id}:${field.id}:${field.current_value}:${field.reviewed}`} sample={sample} field={field} label={label} onSaved={onSaved} /> : <Paper key={key} withBorder p="sm" radius="md"><Text size="sm" fw={600}>{label}</Text><Text size="xs" c="dimmed">Not extracted yet</Text></Paper>; })}</Stack></SimpleGrid></Paper>;
+  return <Paper withBorder radius="lg" p="xl"><Group justify="space-between" mb="lg"><Box><Title order={3}>Verify sample</Title><Text size="sm" c="dimmed">Compare the source label with the extracted values.</Text></Box><Badge color="gray">{sample.label_type} label</Badge></Group><SimpleGrid cols={{ base: 1, lg: 2 }} spacing="xl"><Stack><Text fw={700} size="sm">Source label</Text><FrameGallery frames={sample.media} />{video && <video key={video.id} className="review-video" controls preload="metadata" src={api.mediaUrl(video.id)} aria-label="Original sample rotation video" />}<Text size="xs" c="dimmed">Large labels leave Serial Number blank. Small labels leave Refrence Lube blank. Date Received comes from the batch receiving date.</Text></Stack><Stack gap="sm">{reviewColumns.map(({ key, label }) => { const field = sample.fields.find((item) => item.field_key === key); return field ? <FieldCorrection key={`${sample.id}:${field.id}:${field.current_value}:${field.reviewed}`} sample={sample} field={field} label={label} onSaved={onSaved} /> : <Paper key={key} withBorder p="sm" radius="md"><Text size="sm" fw={600}>{label}</Text><Text size="xs" c="dimmed">Not extracted yet</Text></Paper>; })}</Stack></SimpleGrid></Paper>;
 }
 
 export function ReviewPage() {
