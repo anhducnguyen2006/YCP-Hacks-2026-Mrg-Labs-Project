@@ -3,6 +3,7 @@ import base64
 from collections.abc import Sequence
 
 from google import genai
+from google.genai import errors, types
 
 from app.config import get_settings
 from app.frame_selection import SelectedFrame
@@ -38,6 +39,10 @@ confidence_reason.
 """
 
 
+class GeminiRateLimitError(RuntimeError):
+    """Gemini refused the request because this project is rate/quota limited."""
+
+
 def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtraction:
     if not frames:
         raise ValueError("Cannot analyze an empty set of frames.")
@@ -52,17 +57,36 @@ def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtractio
         }
         for frame in frames
     ]
-    client = genai.Client(api_key=settings.gemini_api_key)
-    interaction = client.interactions.create(
-        model=settings.gemini_model,
-        input=[{"type": "text", "text": PROMPT}, *images],
-        response_format={
-            "type": "text",
-            "mime_type": "application/json",
-            "schema": CompactExtraction.model_json_schema(),
-        },
-        generation_config={"thinking_level": settings.gemini_thinking_level},
+    # A single 429 must not keep the only worker busy for five minutes while
+    # SDK retries sleep. Retrying a project-level quota limit is a policy/UI
+    # decision made after checking usage, not part of one video extraction.
+    client = genai.Client(
+        api_key=settings.gemini_api_key,
+        http_options=types.HttpOptions(
+            retry_options=types.HttpRetryOptions(attempts=1),
+        ),
     )
+    try:
+        interaction = client.interactions.create(
+            model=settings.gemini_model,
+            input=[{"type": "text", "text": PROMPT}, *images],
+            response_format={
+                "type": "text",
+                "mime_type": "application/json",
+                "schema": CompactExtraction.model_json_schema(),
+            },
+            generation_config={"thinking_level": settings.gemini_thinking_level},
+            timeout=settings.gemini_request_timeout_seconds,
+        )
+    except errors.APIError as exc:
+        if exc.code == 429:
+            raise GeminiRateLimitError(
+                "Gemini rate or quota limit (HTTP 429). Check Google AI Studio usage "
+                "and retry after capacity becomes available."
+            ) from exc
+        raise
+    finally:
+        client.close()
     if not interaction.output_text:
         raise RuntimeError("Gemini returned no extraction text.")
     return CompactExtraction.model_validate_json(interaction.output_text)
