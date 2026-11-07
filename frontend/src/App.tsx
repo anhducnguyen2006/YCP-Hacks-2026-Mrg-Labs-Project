@@ -33,9 +33,9 @@ function Layout() {
         <Group h="100%" px="xl" justify="space-between">
           <Group gap="sm">
             <Burger hiddenFrom="sm" opened={mobileOpened} onClick={toggleMobile} size="sm"
-              aria-label="Toggle mobile navigation" />
+              aria-label="Toggle mobile navigation" aria-expanded={mobileOpened} />
             <Burger visibleFrom="sm" opened={desktopOpened} onClick={toggleDesktop} size="sm"
-              aria-label="Toggle desktop navigation" />
+              aria-label="Toggle desktop navigation" aria-expanded={desktopOpened} />
             <UnstyledButton component={RouterLink} to="/scan" className="brand">
               <span className="brand-logo-pair" role="img" aria-label="MRG Laboratories">
                 <img src="/mrg-laboratories.png" alt="" className="brand-logo brand-logo-light" />

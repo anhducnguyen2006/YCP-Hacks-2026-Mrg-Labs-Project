@@ -37,7 +37,11 @@ test("preview loads completed records and supports select-all and deselect", asy
     new QueryClient({ defaultOptions: { queries: { retry: false } } })
   }><TemplatesPage /></QueryClientProvider></MantineProvider>);
 
-  fireEvent.click(screen.getByRole("textbox", { name: "Batch to export" }));
+  const batchSelect = screen.getByRole("textbox", { name: "Batch to export" });
+  // The select starts disabled while React Query loads batches. Wait for
+  // options to become available before opening the Mantine combobox.
+  await waitFor(() => expect(batchSelect).toBeEnabled());
+  fireEvent.click(batchSelect);
   fireEvent.click(await screen.findByRole("option", { name: "Batch A" }));
   fireEvent.click(screen.getByRole("button", { name: "Preview & select samples" }));
   expect(await screen.findByText("Review samples before export")).toBeInTheDocument();

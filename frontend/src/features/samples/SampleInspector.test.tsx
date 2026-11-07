@@ -52,7 +52,7 @@ test("verifies the entire sample in a single explicit action", async () => {
     <SampleInspector sample={sample} onSaved={onSaved}
       qualityFlags={[{ field_key: "date_sampled", code: "year_outlier", message: "Check year" }]} />
   </QueryClientProvider></MantineProvider>);
-  expect(screen.getByText("Check year")).toBeInTheDocument();
+  expect(screen.getByText(/date_sampled\s*:\s*Check year/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Verify entire sample" }));
   await waitFor(() => expect(api.verifySample).toHaveBeenCalledWith("sample-2"));
   expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ review_status: "verified" }));
