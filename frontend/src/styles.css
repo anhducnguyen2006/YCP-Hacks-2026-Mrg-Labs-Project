@@ -233,3 +233,9 @@ html[data-reduce-motion="true"] .lab-welcome-hero .lab-gradient { animation: non
    doing so places content beneath the desktop sidebar. */
 .lab-shell .mantine-AppShell-main { min-width: 0; }
 
+
+/* Phase 2: quality alerts are advisory and never overwrite AI/transcribed data. */
+.lab-shell .quality-cell-warning { background: #fff0f0; box-shadow: inset 3px 0 #d63838; }
+.lab-shell .quality-field-warning { background: #fff0f0; border-color: #d63838; }
+[data-mantine-color-scheme="dark"] .lab-shell .quality-cell-warning,
+[data-mantine-color-scheme="dark"] .lab-shell .quality-field-warning { background: #402429; border-color: #e36d6d; }
