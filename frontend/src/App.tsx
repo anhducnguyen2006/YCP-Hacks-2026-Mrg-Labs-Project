@@ -1,14 +1,16 @@
 import { AppShell, Badge, Box, Burger, Button, Group, Modal, NavLink, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { FileSliders, FlaskConical, HelpCircle, ScanLine, Settings } from "lucide-react";
+import { FileSliders, FlaskConical, HelpCircle, House, ScanLine, Settings } from "lucide-react";
 import { NavLink as RouterLink, Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { ScanPage } from "./features/scan/ScanPage";
 import { SamplesPage } from "./features/samples/SamplesPage";
 import { TemplatesPage } from "./features/templates/TemplatesPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { WorkspaceSettingsProvider } from "./features/settings/WorkspaceSettings";
+import { HomePage } from "./features/batches/HomePage";
 
 const navigation = [
+  { label: "Welcome", icon: House, to: "/welcome" },
   { label: "Scan", icon: ScanLine, to: "/scan" },
   { label: "Samples", icon: FlaskConical, to: "/samples" },
   { label: "Export", icon: FileSliders, to: "/templates" },
@@ -26,20 +28,20 @@ function Layout() {
   const [helpOpened, help] = useDisclosure(false);
   const location = useLocation();
   return (
-    <AppShell header={{ height: 72 }} navbar={{ width: 260, breakpoint: "sm", collapsed: { mobile: !opened } }} padding="xl">
+    <AppShell className="lab-shell" header={{ height: 80 }} navbar={{ width: 244, breakpoint: "sm", collapsed: { mobile: !opened } }} padding="xl">
       <AppShell.Header className="header">
         <Group h="100%" px="xl" justify="space-between">
           <Group gap="sm">
             <Burger hiddenFrom="sm" opened={opened} onClick={toggle} size="sm" />
-            <UnstyledButton component={RouterLink} to="/" className="brand">
+            <UnstyledButton component={RouterLink} to="/welcome" className="brand">
               <img src="/mrg-laboratories.png" alt="MRG Laboratories" className="brand-logo" />
-              <Text className="brand-app-name" fw={700}>Sample Scanner</Text>
+              <Text className="brand-app-name" fw={700}>Sample Label Digitizer</Text>
             </UnstyledButton>
           </Group>
           <Group gap="sm">
             <Button variant="subtle" color="gray" size="sm" leftSection={<HelpCircle size={18} />}
               onClick={help.open} aria-label="How to use Sample Scanner">Help</Button>
-            <Badge color="teal" variant="light" leftSection={<span className="status-dot" />}>Local workspace</Badge>
+            <Badge color="green" variant="light" leftSection={<span className="status-dot" />}>Local workspace</Badge>
           </Group>
         </Group>
       </AppShell.Header>
@@ -76,6 +78,7 @@ function Layout() {
 export function App() {
   return <WorkspaceSettingsProvider><Routes><Route element={<Layout />}>
     <Route index element={<Navigate to="/scan" replace />} />
+    <Route path="welcome" element={<HomePage />} />
     <Route path="scan" element={<ScanPage />} />
     <Route path="samples" element={<SamplesPage />} />
     <Route path="review" element={<LegacyReviewRedirect />} />
