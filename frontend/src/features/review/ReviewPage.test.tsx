@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
@@ -27,10 +27,9 @@ test("shows seven CSV columns and persists a verified string identifier", async 
   fireEvent.click(screen.getByRole("button", { name: "00123" }));
   await screen.findByText("Inspect sample label");
   fireEvent.click(screen.getAllByRole("button", { name: "Edit / verify" })[0]);
-  const dialogs = await screen.findAllByRole("dialog");
-  const dialog = dialogs[dialogs.length - 1];
-  fireEvent.change(within(dialog).getByRole("textbox", { name: "Sample ID" }), { target: { value: "00042" } });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Save & verify field" }));
+  const fieldInput = await screen.findByRole("textbox", { name: "Sample ID" });
+  fireEvent.change(fieldInput, { target: { value: "00042" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save & verify field" }));
   expect((await screen.findAllByText("Field saved to the sample record.")).length).toBeGreaterThan(0);
   expect(api.updateField).toHaveBeenCalledWith("sample-1", "sample_id", "00042");
   expect(screen.getByRole("button", { name: "00042" })).toBeInTheDocument();
