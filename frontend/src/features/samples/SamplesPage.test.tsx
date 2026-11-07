@@ -35,11 +35,9 @@ test("opens an editable inspector directly from the Samples inventory", async ()
   const onUpdate = { ...sample, fields: [{ ...sample.fields[0], current_value: "00042", reviewed: true, review_required: false }] };
   vi.mocked(api.updateField).mockResolvedValue(onUpdate);
   render(<MantineProvider><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <MemoryRouter><SamplesPage /></MemoryRouter>
+    <MemoryRouter initialEntries={["/samples?batch=batch-1"]}><SamplesPage /></MemoryRouter>
   </QueryClientProvider></MantineProvider>);
 
-  fireEvent.click(screen.getByRole("textbox", { name: "Choose batch" }));
-  fireEvent.click(await screen.findByRole("option", { name: "Test batch" }));
   fireEvent.click(await screen.findByRole("button", { name: "Inspect / edit" }));
 
   await screen.findByText("Sample details & verification");
