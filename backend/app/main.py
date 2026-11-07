@@ -433,7 +433,7 @@ async def upload_sample(
         ))
         db.commit()
         return sample_out(db, sample)
-    except Exception:  # noqa: BLE001 - rollback must also cover unexpected I/O failures
+    except Exception:
         output.unlink(missing_ok=True)
         db.rollback()
         raise

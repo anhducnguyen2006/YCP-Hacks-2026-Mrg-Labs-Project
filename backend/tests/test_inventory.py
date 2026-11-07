@@ -9,6 +9,7 @@ from app.db import Base, get_db
 from app.main import app
 from app.models import Batch, ProcessingJob, Sample, SampleField
 
+
 @pytest.fixture
 def setup():
     engine = create_engine(
