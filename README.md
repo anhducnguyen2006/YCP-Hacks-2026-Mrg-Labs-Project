@@ -200,11 +200,11 @@ Observed benchmark examples (technician reference sheet versus earlier Gemini ou
 - Sample `128245`: `10/05/26` versus `2016-10-05`.
 - Sample `125767`: `09/28/26` versus `2020-04-28`.
 
-These examples motivate systematic calibration; the screenshots alone are not a complete accuracy benchmark.
+These examples motivate systematic calibration; the screenshots alone are not a complete accuracy benchmark. Run newly analyzed videos against a technician-reviewed sample sheet to measure exact-date accuracy and false positive/negative warnings.
 
 ## Confidence interpretation
 
-Gemini reports one overall rating per sample in its existing selected-frame request, so there is no second inference call. High means clear, consistent readings across the applicable fields; medium means some visual ambiguity; low means important unreadable or contradictory text. A high rating is **not proof that any character is correct**. Calibrate these categories against technician-reviewed samples before relying on them for automatic acceptance. Dates received from the batch and inapplicable fields do not affect the rating. Older completed records are shown as **Not rated** and are never rescanned automatically.
+Gemini reports one overall rating per sample in its existing selected-frame request, so there is no second inference call. High means clear, consistent readings across the applicable fields; medium means some visual ambiguity; low means important unreadable or contradictory text. The backend may lower this rating for date conflicts or anomalies. A high rating is **not proof that any character is correct**. Calibrate these categories against technician-reviewed samples before relying on them for automatic acceptance. Dates received from the batch and inapplicable fields do not affect the rating. Older completed records are shown as **Not rated** and are never rescanned automatically.
 
 ## Inventory
 
