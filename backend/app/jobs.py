@@ -9,6 +9,7 @@ from app.db import SessionLocal
 from app.frame_selection import select_frames
 from app.gemini_frames import GeminiRateLimitError, GeminiUnavailableError, analyze_selected_frames
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia
+from app.quota_gate import connection, get_hold, set_hold
 from app.schemas import FIELD_KEYS
 
 
@@ -32,10 +33,33 @@ def _stage(job_id: str, sample_id: str, name: str) -> bool:
         return True
 
 
+def _pause(job_id: str, sample_id: str, reason: str) -> None:
+    """Persist recoverable state; no new media upload or new Gemini call required."""
+    with SessionLocal() as db:
+        job = db.get(ProcessingJob, job_id)
+        sample = db.get(Sample, sample_id)
+        if not job or not sample or job.status == "canceled":
+            return
+        job.status = "paused"
+        job.current_stage = "awaiting_capacity"
+        job.error_message = (
+            "Gemini quota/rate limit (HTTP 429). Resume manually after quota recovers."
+            if reason == "quota" else
+            "Gemini overloaded (HTTP 503). Resume manually after service recovers."
+        )
+        sample.processing_status = "paused"
+        sample.updated_at = _time()
+        db.commit()
+
+
 def process_sample(sample_id: str, job_id: str) -> None:
     settings = get_settings()
     root = Path(settings.media_root).resolve()
     try:
+        hold = get_hold(connection())
+        if hold:
+            _pause(job_id, sample_id, str(hold["reason"]))
+            return
         if not _stage(job_id, sample_id, "extracting_frames"):
             return
         with SessionLocal() as db:
@@ -73,6 +97,10 @@ def process_sample(sample_id: str, job_id: str) -> None:
                     },
                 ))
             db.commit()
+        hold = get_hold(connection())
+        if hold:
+            _pause(job_id, sample_id, str(hold["reason"]))
+            return
         _stage(job_id, sample_id, "analyzing_selected_frames")
         extraction = analyze_selected_frames(frames)
         _stage(job_id, sample_id, "saving_results")
@@ -137,6 +165,12 @@ def process_sample(sample_id: str, job_id: str) -> None:
             job.current_stage = "completed"
             job.error_message = None
             db.commit()
+    except (GeminiRateLimitError, GeminiUnavailableError) as exc:
+        reason = "quota" if isinstance(exc, GeminiRateLimitError) else "unavailable"
+        # On a Redis outage, fail normally rather than silently claiming work is held.
+        set_hold(connection(), reason)
+        _pause(job_id, sample_id, reason)
+        return
     except Exception as exc:
         with SessionLocal() as db:
             sample = db.get(Sample, sample_id)

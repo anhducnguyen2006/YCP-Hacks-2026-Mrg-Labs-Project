@@ -42,6 +42,7 @@ class BatchStatusOut(BaseModel):
     completed: int
     failed: int
     canceled: int
+    paused: int
     needs_review: int
     items: list[BatchSampleStatusOut]
 
