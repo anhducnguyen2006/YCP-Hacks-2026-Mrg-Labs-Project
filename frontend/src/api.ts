@@ -70,6 +70,11 @@ export const api = {
   baseUrl: API_BASE_URL,
   batches: () => request<Batch[]>("/api/batches"),
   batchStatus: (batchId: string) => request<BatchStatus>(`/api/batches/${encodeURIComponent(batchId)}/status`),
+  deleteSamples: (batchId: string, sampleIds: string[]) =>
+    request<{ deleted: number }>(`/api/batches/${encodeURIComponent(batchId)}/samples/delete`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sample_ids: sampleIds }),
+    }),
   inventory: (batchId: string, options: { search: string; status: string; sortBy: string; descending: boolean; offset: number }) => {
     const params = new URLSearchParams({
       search: options.search, status: options.status, sort_by: options.sortBy,

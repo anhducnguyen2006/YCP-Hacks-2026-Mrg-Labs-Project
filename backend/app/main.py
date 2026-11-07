@@ -17,7 +17,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia, uid
 from app.schemas import (
-    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut, InventoryOut,
+    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut, InventoryOut, SampleDeleteRequest,
 )
 from app.store import batch_out, sample_out
 
@@ -221,6 +221,40 @@ def inventory(
         Sample.created_at.desc(), Sample.id.desc(),
     ).offset(offset).limit(limit)
     return InventoryOut(total=total, items=[sample_out(db, s) for s in db.scalars(stmt)])
+
+
+
+@app.post("/api/batches/{batch_id}/samples/delete")
+def delete_selected_samples(
+    batch_id: str, payload: SampleDeleteRequest, db: Session = Depends(get_db)
+) -> dict[str, int]:
+    """Remove selected inactive sample records after explicit UI confirmation."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    ids = list(dict.fromkeys(payload.sample_ids))
+    samples = db.scalars(
+        select(Sample).where(Sample.batch_id == batch_id, Sample.id.in_(ids))
+        .with_for_update()
+    ).all()
+    if len(samples) != len(ids):
+        raise HTTPException(404, "One or more samples are not in the selected batch.")
+    jobs = db.scalars(select(ProcessingJob).where(ProcessingJob.sample_id.in_(ids))).all()
+    if any(s.processing_status == "processing" for s in samples) or any(
+        job.status in {"queued", "processing"} for job in jobs
+    ):
+        raise HTTPException(409, "Cannot remove samples with active analysis jobs.")
+    media = db.scalars(select(SampleMedia).where(SampleMedia.sample_id.in_(ids))).all()
+    fields = db.scalars(select(SampleField).where(SampleField.sample_id.in_(ids))).all()
+    for record in fields:
+        db.delete(record)
+    for record in media:
+        db.delete(record)
+    for record in jobs:
+        db.delete(record)
+    for record in samples:
+        db.delete(record)
+    db.commit()
+    return {"deleted": len(ids)}
 
 
 @app.post("/api/batches/{batch_id}/samples", response_model=SampleOut, status_code=201)

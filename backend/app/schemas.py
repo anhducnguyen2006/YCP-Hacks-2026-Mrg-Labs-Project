@@ -93,6 +93,10 @@ class InventoryOut(BaseModel):
     items: list[SampleOut]
 
 
+class SampleDeleteRequest(BaseModel):
+    sample_ids: list[str] = Field(min_length=1, max_length=100)
+
+
 class FieldCorrection(BaseModel):
     current_value: str = Field(max_length=5000)
 
