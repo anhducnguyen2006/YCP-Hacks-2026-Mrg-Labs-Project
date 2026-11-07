@@ -13,6 +13,6 @@ test("renders the sample scanner navigation", () => {
       </QueryClientProvider>
     </MantineProvider>,
   );
-  expect(screen.getByText("MRG")).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "MRG Laboratories" })).toBeInTheDocument();
   expect(screen.getByText("Templates & Export")).toBeInTheDocument();
 });

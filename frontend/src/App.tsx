@@ -3,6 +3,8 @@ import { useDisclosure } from "@mantine/hooks";
 import { Activity, FileSliders, FlaskConical, FolderKanban, ScanLine, Settings, ShieldCheck } from "lucide-react";
 import { NavLink as RouterLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { HomePage } from "./features/batches/HomePage";
+import { ReviewPage } from "./features/review/ReviewPage";
+import { ScanPage } from "./features/scan/ScanPage";
 
 const navigation = [
   { label: "Batches", icon: FolderKanban, to: "/" },
@@ -41,8 +43,8 @@ function Layout() {
           <Group gap="sm">
             <Burger hiddenFrom="sm" opened={opened} onClick={toggle} size="sm" />
             <UnstyledButton component={RouterLink} to="/" className="brand">
-              <ThemeIcon color="teal" radius="md" size={38}><FlaskConical size={21} /></ThemeIcon>
-              <Box><Text fw={800} size="lg" lh={1.1}>MRG</Text><Text size="xs" c="dimmed" fw={600}>SAMPLE SCANNER</Text></Box>
+              <img src="/mrg-laboratories.png" alt="MRG Laboratories" className="brand-logo" />
+              <Text className="brand-app-name" fw={700}>Sample Scanner</Text>
             </UnstyledButton>
           </Group>
           <Badge color="teal" variant="light" leftSection={<span className="status-dot" />}>Local workspace</Badge>
@@ -68,9 +70,9 @@ function Layout() {
 export function App() {
   return <Routes><Route element={<Layout />}>
     <Route index element={<HomePage />} />
-    <Route path="scan" element={<Page eyebrow="CAPTURE" title="Scan a sample" description="Record or upload a rotating sample tube video for label reconstruction." />} />
+    <Route path="scan" element={<ScanPage />} />
     <Route path="samples" element={<Page eyebrow="SAMPLE INVENTORY" title="Samples" description="Inspect extracted fields, edit values, and select samples for export." />} />
-    <Route path="review" element={<Page eyebrow="QUALITY CONTROL" title="Review queue" description="Resolve questionable extractions before they become part of your laboratory record." />} />
+    <Route path="review" element={<ReviewPage />} />
     <Route path="templates" element={<Page eyebrow="CONFIGURATION" title="Templates & export" description="Configure label templates and CSV export profiles for your team." />} />
     <Route path="settings" element={<Page eyebrow="WORKSPACE" title="Settings" description="Manage local workspace preferences and processing thresholds." />} />
   </Route></Routes>;

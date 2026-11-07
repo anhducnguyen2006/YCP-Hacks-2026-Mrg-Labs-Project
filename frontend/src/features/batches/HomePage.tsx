@@ -1,14 +1,18 @@
 import { Badge, Box, Button, Group, Modal, Paper, SimpleGrid, Stack, Text, ThemeIcon, Title } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useReducedMotion } from "@mantine/hooks";
 import { ArrowRight, BookOpen, CheckCircle2, FileSpreadsheet, FlaskConical, FolderOpen, Layers, Plus, ScanLine, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useScrollReveal } from "./useScrollReveal";
 
 export function HomePage() {
+  const pageRef = useScrollReveal();
   const [instructionsOpen, instructions] = useDisclosure();
   const [batchOpen, batch] = useDisclosure();
+  const reducedMotion = useReducedMotion();
+  const modalMotion = { transition: "fade" as const, duration: reducedMotion ? 0 : 200 };
 
   return (
-    <Stack gap="xl" className="home-page">
+    <Stack ref={pageRef} gap="xl" className="home-page home-motion">
       <Group justify="space-between" align="flex-start">
         <Box><Text className="eyebrow">YOUR LABORATORY WORKSPACE</Text><Title order={1} mt={6}>Sample digitization, simplified.</Title><Text c="dimmed" mt="sm">From sample tube to structured data, with you in control.</Text></Box>
         <Badge variant="outline" color="gray">Foundation preview</Badge>
@@ -20,7 +24,7 @@ export function HomePage() {
           <Title order={2} mt="sm">Less typing.<br />More time for the lab.</Title>
           <Text mt="md" c="dimmed" maw={480}>A guided workspace for capturing sample labels, checking extracted information, and preparing your CSV.</Text>
           <Group mt="xl"><Button color="green" size="md" leftSection={<Plus size={18} />} onClick={batch.open}>New Batch</Button><Button variant="default" size="md" leftSection={<BookOpen size={18} />} onClick={instructions.open}>Capture instructions</Button></Group>
-          <Text size="xs" c="dimmed" mt="md">Capture, processing, and export will be connected in the next phase.</Text>
+          <Text size="xs" c="dimmed" mt="md">Upload recorded videos in Scan, then verify extracted fields in Review.</Text>
         </div>
         <div className="workflow-visual" aria-hidden="true">
           <div className="label-preview"><div className="label-preview-top"><FlaskConical size={20} /><span>SAMPLE LABEL</span></div><strong>OIL & GREASE</strong><div className="label-line" /><div className="label-line short" /><div className="barcode" /><span>Ready for a closer look</span></div>
@@ -33,12 +37,12 @@ export function HomePage() {
       </SimpleGrid>
 
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-        <Paper withBorder radius="lg" p="xl"><Group justify="space-between"><Title order={3}>Recent batches</Title><Badge color="gray" variant="light">Not connected</Badge></Group><Stack align="center" gap="sm" className="batch-empty"><ThemeIcon size={54} radius="xl" variant="light" color="gray"><FolderOpen size={27} /></ThemeIcon><Text fw={700}>Your batches will appear here</Text><Text size="sm" c="dimmed" ta="center" maw={330}>Once batch saving is connected, you can return here to resume unfinished work.</Text><Button variant="subtle" color="green" rightSection={<ArrowRight size={16} />} onClick={batch.open}>Explore the next step</Button></Stack></Paper>
+        <Paper withBorder radius="lg" p="xl"><Group justify="space-between"><Title order={3}>Recent batches</Title><Badge color="gray" variant="light">Not connected</Badge></Group><Stack align="center" gap="sm" className="batch-empty"><ThemeIcon size={54} radius="xl" variant="light" color="gray"><FolderOpen size={27} /></ThemeIcon><Text fw={700}>Your batches will appear here</Text><Text size="sm" c="dimmed" ta="center" maw={330}>Use Scan to choose a saved batch. Recent batches are not connected on this Home screen yet.</Text><Button variant="subtle" color="green" rightSection={<ArrowRight size={16} />} onClick={batch.open}>Explore the next step</Button></Stack></Paper>
         <Paper withBorder radius="lg" p="xl"><Title order={3}>From label to record</Title><Stack gap="lg" mt="xl">{[{ icon: ScanLine, title: "1. Capture", text: "Record a short video while rotating a sample tube." }, { icon: ShieldCheck, title: "2. Review", text: "Compare extracted fields with the label and correct uncertain readings." }, { icon: CheckCircle2, title: "3. Export", text: "Prepare selected samples in the laboratory’s CSV format." }].map(({ icon: Icon, title, text }) => <Group key={title} wrap="nowrap" align="flex-start"><ThemeIcon variant="light" color="green" radius="md" size={38}><Icon size={20} /></ThemeIcon><Box><Text fw={700} size="sm">{title}</Text><Text c="dimmed" size="sm" mt={3}>{text}</Text></Box></Group>)}</Stack><Text size="xs" c="dimmed" mt="xl">Planned workflow · Large and Small sample labels</Text></Paper>
       </SimpleGrid>
 
-      <Modal opened={instructionsOpen} onClose={instructions.close} title="Capture instructions" centered><Stack><Text size="sm">For the planned capture workflow:</Text><ol className="capture-steps"><li>Choose the correct Large or Small label type.</li><li>Place one tube in even lighting with its label facing the camera.</li><li>Rotate it slowly through a full turn, keeping the label in frame.</li><li>Check that the text is readable; retake if it is blurred or obscured.</li></ol><Text size="sm" c="dimmed">Keep the physical sample available for checking uncertain readings. Camera recording is not connected in this preview.</Text><Button color="green" onClick={instructions.close}>Got it</Button></Stack></Modal>
-      <Modal opened={batchOpen} onClose={batch.close} title="Start a new batch" centered><Stack><Text>Batch creation is the next implementation step.</Text><Text size="sm" c="dimmed">This preview establishes the workspace. Saving batches and recording samples are not available yet.</Text><Button component={Link} to="/scan" color="green" rightSection={<ArrowRight size={16} />}>View capture workspace</Button></Stack></Modal>
+      <Modal transitionProps={modalMotion} opened={instructionsOpen} onClose={instructions.close} title="Capture instructions" centered><Stack><Text size="sm">For the planned capture workflow:</Text><ol className="capture-steps"><li>Choose the correct Large or Small label type.</li><li>Place one tube in even lighting with its label facing the camera.</li><li>Rotate it slowly through a full turn, keeping the label in frame.</li><li>Check that the text is readable; retake if it is blurred or obscured.</li></ol><Text size="sm" c="dimmed">Keep the physical sample available for checking uncertain readings. Camera recording is not connected in this preview.</Text><Button color="green" onClick={instructions.close}>Got it</Button></Stack></Modal>
+      <Modal transitionProps={modalMotion} opened={batchOpen} onClose={batch.close} title="Start a new batch" centered><Stack><Text>Create or choose a batch in the capture workspace.</Text><Text size="sm" c="dimmed">The capture workspace connects to the batch API and accepts recorded sample videos. The backend must be running to save your work.</Text><Button component={Link} to="/scan" color="green" rightSection={<ArrowRight size={16} />}>View capture workspace</Button></Stack></Modal>
     </Stack>
   );
 }

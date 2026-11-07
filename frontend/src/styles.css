@@ -17,13 +17,136 @@ h1, h2, h3 { color: #102e51; letter-spacing: -.025em; }
 .batch-empty { min-height: 265px; justify-content: center; padding-top: 20px; }
 .capture-steps { padding-left: 22px; margin: 0; font-size: 14px; line-height: 1.7; }
 .capture-steps li + li { margin-top: 10px; }
+.review-page { max-width: 1400px; margin: 0 auto; }
+.review-batch-select { flex: 1; min-width: 220px; }
+.review-table-panel { overflow: hidden; }
+.review-table th { background: #f1f6f3; color: #102e51; white-space: nowrap; }
+.review-table td { min-width: 130px; overflow-wrap: anywhere; }
+.review-table tr[data-selected] { background: #f2f8f4; }
+.review-table .review-cell-warning, .review-field-warning { background: #fff9e9; }
+.review-image-link { color: #246331; text-decoration: none; border: 1px solid #e1ebe5; border-radius: 12px; padding: 12px; background: #f7faf9; }
+.review-image-link:focus-visible { outline: 2px solid #246331; outline-offset: 3px; }
+.review-image-empty { min-height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #f7faf9; border: 1px dashed #c9dcda; border-radius: 12px; color: #667c73; }
+.review-video { width: 100%; max-height: 260px; border-radius: 12px; background: #152a2e; }
+.scan-page { max-width: 1240px; margin: 0 auto; }
+.scan-guide { background: linear-gradient(120deg, #eef5ee, #f8fbfc); }
+.scan-video { width: 100%; max-height: 300px; border-radius: 12px; background: #152a2e; margin-top: 18px; }
+
+/* Shared workspace motion uses short entrances, with no movement while editing. */
+@keyframes workspace-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes status-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 #228be61c; }
+  50% { box-shadow: 0 0 0 4px #228be600; }
+}
+.scan-page > :nth-child(-n+3), .review-page > :nth-child(-n+2) {
+  animation: workspace-enter 550ms cubic-bezier(.22, 1, .36, 1) backwards;
+}
+.scan-page > :nth-child(2), .review-page > :nth-child(2) { animation-delay: 70ms; }
+.scan-page > :nth-child(3) { animation-delay: 140ms; }
+.scan-page .scan-guide .mantine-Stack-root > .mantine-Group-root {
+  animation: workspace-enter 500ms ease backwards;
+}
+.scan-page .scan-guide .mantine-Stack-root > :nth-child(1) { animation-delay: 180ms; }
+.scan-page .scan-guide .mantine-Stack-root > :nth-child(2) { animation-delay: 240ms; }
+.scan-page .scan-guide .mantine-Stack-root > :nth-child(3) { animation-delay: 300ms; }
+.scan-page .scan-guide .mantine-Stack-root > :nth-child(4) { animation-delay: 360ms; }
+.scan-page .mantine-Paper-root, .review-page .mantine-Paper-root {
+  transition: border-color 200ms ease, box-shadow 220ms ease;
+}
+.scan-page .mantine-Button-root, .review-page .mantine-Button-root {
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.scan-page .mantine-Input-input, .review-page .mantine-Input-input {
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.scan-page .mantine-Stepper-stepIcon {
+  transition: background-color 250ms ease, border-color 250ms ease, color 250ms ease;
+}
+.scan-page .mantine-Stepper-step[data-progress] .mantine-Stepper-stepIcon {
+  box-shadow: 0 0 0 4px #228b2220;
+}
+.scan-page [role="status"] { animation: status-breathe 1800ms ease-in-out 2; border-radius: 8px; }
+.scan-page .mantine-Alert-root, .review-page .mantine-Alert-root {
+  animation: workspace-enter 300ms ease backwards;
+}
+.review-table tbody tr { transition: background-color 160ms ease; }
+.review-image-link { transition: border-color 200ms ease, box-shadow 200ms ease; }
+@media (hover: hover) {
+  .scan-page .mantine-Paper-root:hover, .review-page .review-field:hover {
+    border-color: #bdd3c3; box-shadow: 0 5px 18px #163e240a;
+  }
+  .scan-page .mantine-Button-root:not(:disabled):hover, .review-page .mantine-Button-root:not(:disabled):hover {
+    box-shadow: 0 3px 10px #163e2414;
+  }
+  .review-table tbody tr:hover { background-color: #edf5ef; }
+  .review-image-link:hover { border-color: #95b69f; box-shadow: 0 5px 20px #163e2410; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scan-page *, .review-page * { animation: none !important; transition: none !important; }
+}
+@media (max-width: 600px) { .scan-page .mantine-Stepper-stepLabel { font-size: 11px; } .scan-page .mantine-Stepper-steps { flex-wrap: wrap; gap: 10px; } }
 @media (max-width: 1100px) { .workflow-visual { display: none; } }
 @media (max-width: 600px) { .mantine-AppShell-main { padding: calc(var(--app-shell-header-offset, 0rem) + 18px) 16px 24px; } .welcome-panel { padding: 22px !important; } .home-page h1 { font-size: 27px; } }
 .header { background: rgba(255,255,255,.92); border-bottom: 1px solid #e6eeec; }
 .navbar { background: #fff; border-right: 1px solid #e6eeec; }
 .brand { display: flex; align-items: center; gap: 10px; color: #17383d; }
+.brand-logo { width: 112px; height: 60px; object-fit: contain; flex-shrink: 0; }
+.brand-app-name { border-left: 1px solid #dce5df; padding-left: 14px; color: #102e51; }
+@media (max-width: 480px) { .brand-logo { width: 86px; } .brand-app-name { font-size: 12px; padding-left: 8px; max-width: 70px; } .header > .mantine-Group-root { padding-inline: 12px; } }
 .nav-label, .eyebrow { color: #5b7c7d; font-size: 11px; font-weight: 800; letter-spacing: .12em; }
 .nav-label { padding: 18px 12px 8px; }
 .nav-footer { border-top: 1px solid #e6eeec; padding: 18px 12px 4px; }
 .status-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: #2bb673; }
 .empty-panel { min-height: 340px; border: 1px dashed #c9dcda; border-radius: 16px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 28px; }
+
+/* Motion stays decorative: content and controls remain available throughout. */
+@keyframes home-arrive {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes label-drift {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-6px) rotate(-3deg); }
+}
+@keyframes csv-arrive {
+  0%, 100% { opacity: 1; transform: translateY(0); }
+  50% { opacity: .65; transform: translateY(-4px); }
+}
+@keyframes transfer-hint {
+  0%, 100% { opacity: .5; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(5px); }
+}
+.home-motion > :nth-child(-n+4) { animation: home-arrive 600ms cubic-bezier(.22, 1, .36, 1) backwards; }
+.home-motion > :nth-child(2) { animation-delay: 90ms; }
+.home-motion > :nth-child(3) { animation-delay: 180ms; }
+.home-motion > :nth-child(4) { animation-delay: 270ms; }
+.home-motion > .scroll-section {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 800ms ease, transform 900ms cubic-bezier(.22, 1, .36, 1);
+}
+.home-motion > .scroll-section.scroll-visible,
+.home-motion > .scroll-section:focus-within {
+  opacity: 1;
+  transform: translateY(0);
+}
+.home-motion .label-preview { animation: label-drift 2400ms ease-in-out 2; }
+.home-motion .visual-arrow { animation: transfer-hint 2200ms ease-in-out 2; }
+.home-motion .csv-preview { animation: csv-arrive 2400ms ease-in-out 2; }
+.home-motion .mantine-Paper-root:not(.welcome-panel) { transition: border-color 200ms ease, box-shadow 200ms ease; }
+.home-motion .mantine-Button-root { transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
+.navbar .mantine-NavLink-root { transition: background-color 180ms ease, color 180ms ease; }
+@media (hover: hover) {
+  .home-motion .mantine-Paper-root:not(.welcome-panel):hover { border-color: #bdd3c3; box-shadow: 0 6px 20px #163e2409; }
+  .home-motion .mantine-Button-root:hover { transform: translateY(-1px); box-shadow: 0 4px 12px #163e2414; }
+  .home-motion .mantine-Button-root:active { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-motion > .scroll-section { opacity: 1; transform: none; transition: none; }
+  .home-motion > :nth-child(-n+4), .home-motion .label-preview, .home-motion .visual-arrow, .home-motion .csv-preview { animation: none; }
+  .home-motion .mantine-Paper-root, .home-motion .mantine-Button-root, .navbar .mantine-NavLink-root { transition: none; }
+  .home-motion .mantine-Button-root:hover { transform: none; }
+}
