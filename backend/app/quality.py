@@ -89,10 +89,9 @@ def batch_quality(db: Session, batch_id: str) -> dict:
                                                f"{consensus}. Check the handwritten year.")})
             if (
                 not field.reviewed
-                and field.confidence_source in {"paddleocr_cpu", "paddleocr_gpu"}
+                and field.confidence_source in {"paddleocr_cpu", "paddleocr_gpu", "derived_heuristic"}
                 and field.confidence is not None
                 and field.confidence < OCR_SCORE_THRESHOLD
-
             ):
                 alerts.append({
                     "field_key": key, "code": "low_ocr_score",
@@ -101,7 +100,7 @@ def batch_quality(db: Session, batch_id: str) -> dict:
                 })
             elif (
                 not field.reviewed
-                and field.confidence_source in {"paddleocr_cpu", "paddleocr_gpu"}
+                and field.confidence_source in {"paddleocr_cpu", "paddleocr_gpu", "derived_heuristic"}
                 and field.confidence is None
                 and field.current_value
             ):

@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 # Import the core analysis function from local_tube_ocr
-from local_tube_ocr import process_tube_video
+from app.local_tube_ocr import process_tube_video
 
 # Supported video formats
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv"}

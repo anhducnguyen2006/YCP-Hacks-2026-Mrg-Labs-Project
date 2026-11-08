@@ -208,7 +208,8 @@ def process_sample(sample_id: str, job_id: str) -> None:
 
                 field.confidence = round(score, 3) if score is not None and value else None
                 field.confidence_source = (
-                    "paddleocr_gpu" if os.getenv("OCR_DEVICE", "cpu").startswith("gpu")
+                    "derived_heuristic" if key == "component" and tube_type == "small"
+                    else "paddleocr_gpu" if os.getenv("OCR_DEVICE", "cpu").startswith("gpu")
                     else "paddleocr_cpu"
                 ) if key != "date_received" and value else None
                 field.status = status

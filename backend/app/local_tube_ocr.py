@@ -425,9 +425,9 @@ def parse_tube_table_data(unique_texts: dict, assay_choice: str, assay_conf: flo
 def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"):
     total_start_time = time.perf_counter()
 
-    print(f"\n=======================================================")
+    print("\n=======================================================")
     print(f"Loading and processing: {video_path}")
-    print(f"=======================================================")
+    print("=======================================================")
     os.makedirs(output_dir, exist_ok=True)
     debug_crop_dir = os.path.join(output_dir, "debug_crops")
     os.makedirs(debug_crop_dir, exist_ok=True)
@@ -555,7 +555,7 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
     # Resolve Assay (GS vs NGS) with Diagnostic Logging
     mean_gs = float(np.mean(gs_scores_all)) if gs_scores_all else 0.0
     mean_ngs = float(np.mean(ngs_scores_all)) if ngs_scores_all else 0.0
-    print(f"\n================ Assay Decision Diagnostic ================")
+    print("\n================ Assay Decision Diagnostic ================")
     print(f"Overall GS Score: {mean_gs:.3f} | Overall NGS Score: {mean_ngs:.3f}")
     if mean_gs > mean_ngs:
         chosen_assay = "GS"
@@ -571,7 +571,7 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
         print("Result -> Indeterminate Assay Choice")
 
     # Resolve Passage Digit with Diagnostic Logging
-    print(f"\n================ Passage Decision Diagnostic ================")
+    print("\n================ Passage Decision Diagnostic ================")
     resolved_passage = None
     passage_conf = 0.85
     if unicode_passages:
@@ -639,7 +639,7 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
     print("           PERFORMANCE TIMING")
     print("=" * 45)
     print(f"Keyframe Extraction ({len(keyframes)} frames) : {kf_duration:.3f} s")
-    print(f"GPU OCR Inference & Enclosure: {ocr_duration:.3f} s")
+    print(f"Local OCR Inference & Enclosure: {ocr_duration:.3f} s")
     print(f"Average Latency Per Keyframe : {avg_frame_time:.3f} s")
     print(f"Total Pipeline Runtime       : {total_duration:.3f} s")
     print("=" * 45 + "\n")
