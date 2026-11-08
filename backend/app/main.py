@@ -21,6 +21,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia, uid
 from app.quality import batch_quality
+from app.quota_gate import clear_hold, connection, get_hold
 from app.schemas import (
     FIELD_KEYS,
     BatchCreate,
@@ -103,7 +104,7 @@ def batch_status(batch_id: str, db: Session = Depends(get_db)) -> BatchStatusOut
         .where(Sample.batch_id == batch_id)
         .order_by(Sample.created_at, Sample.id)
     ).all()
-    counts = {status: 0 for status in ("queued", "processing", "completed", "failed", "canceled")}
+    counts = {status: 0 for status in ("queued", "processing", "completed", "failed", "canceled", "paused")}
     for _, status in items:
         counts[status] = counts.get(status, 0) + 1
     needs_review = db.scalar(
@@ -116,7 +117,7 @@ def batch_status(batch_id: str, db: Session = Depends(get_db)) -> BatchStatusOut
     return BatchStatusOut(
         total=len(items), queued=counts["queued"], processing=counts["processing"],
         completed=counts["completed"], failed=counts["failed"],
-        canceled=counts["canceled"],
+        canceled=counts["canceled"], paused=counts["paused"],
         needs_review=needs_review,
         items=[BatchSampleStatusOut(id=sid, status=status) for sid, status in items],
     )
@@ -322,6 +323,40 @@ def inventory(
     ).offset(offset).limit(limit)
     return InventoryOut(total=total, items=[sample_out(db, s) for s in db.scalars(stmt)])
 
+
+
+@app.get("/api/analysis-gate")
+def analysis_gate() -> dict:
+    """Current project-wide dispatch hold; never includes API key or label data."""
+    try:
+        return {"hold": get_hold(connection())}
+    except Exception as exc:
+        raise HTTPException(503, "Could not read analysis queue status.") from exc
+
+
+@app.post("/api/batches/{batch_id}/resume-paused")
+def resume_paused(batch_id: str, db: Session = Depends(get_db)) -> dict[str, int]:
+    """Explicitly clear shared hold and requeue this batch's paused video records."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    try:
+        clear_hold(connection())
+    except Exception as exc:
+        raise HTTPException(503, "Could not reach analysis queue.") from exc
+
+    paused = db.scalars(select(Sample).where(
+        Sample.batch_id == batch_id, Sample.processing_status == "paused",
+    ).order_by(Sample.created_at, Sample.id)).all()
+    resumed = failed = 0
+    for sample in paused:
+        # Existing analyze endpoint creates a new RQ job and retains original media.
+        # A failed enqueue is reflected as failed rather than silently dropping work.
+        try:
+            analyze_sample(sample.id, db)
+            resumed += 1
+        except HTTPException:
+            failed += 1
+    return {"resumed": resumed, "failed": failed}
 
 
 @app.post("/api/batches/{batch_id}/cancel-queued")

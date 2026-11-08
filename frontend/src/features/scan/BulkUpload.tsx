@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import { Alert, Badge, Box, Button, Group, Paper, Progress, ScrollArea, Stack, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2, Files, Pause, Play, UploadCloud, Ban } from "lucide-react";
+import { AlertCircle, CheckCircle2, Files, Pause, Play, UploadCloud, Ban, RotateCcw } from "lucide-react";
 import { api } from "../../api";
 
-type UploadState = "ready" | "uploading" | "queued" | "processing" | "completed" | "failed" | "canceled";
+type UploadState = "ready" | "uploading" | "queued" | "processing" | "completed" | "failed" | "canceled" | "paused";
 type UploadItem = { id: number; file: File; state: UploadState; sampleId?: string; error?: string };
 const MAX_FILES = 800;
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -35,8 +35,14 @@ export function BulkUpload({ batchId }: { batchId: string }) {
     refetchInterval: (query) => {
       const uploading = itemsRef.current.some((item) => item.state === "uploading");
       const pendingServer = (query.state.data?.queued ?? 0) + (query.state.data?.processing ?? 0);
-      return uploading || pendingServer > 0 ? 3000 : false;
+      return uploading || pendingServer > 0 ? 3000 : 10000;
     },
+  });
+  const gate = useQuery({
+    queryKey: ["analysis-gate"],
+    queryFn: api.analysisGate,
+    refetchInterval: 10000,
+    retry: false,
   });
   const serverStates = new Map((status.data?.items ?? []).map((item) => [item.id, item.status]));
   const effectiveState = (item: UploadItem) =>
@@ -44,6 +50,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
   const done = items.filter((item) => effectiveState(item) === "completed").length;
   const errors = items.filter((item) => effectiveState(item) === "failed").length;
   const canceled = items.filter((item) => effectiveState(item) === "canceled").length;
+  const pausedCount = items.filter((item) => effectiveState(item) === "paused").length;
   const inProgress = items.filter((item) => ["uploading", "queued", "processing"].includes(effectiveState(item))).length;
 
   const addFiles = (files: File[]) => {
@@ -63,6 +70,19 @@ export function BulkUpload({ batchId }: { batchId: string }) {
   };
   const patch = (id: number, changes: Partial<UploadItem>) =>
     changeItems((previous) => previous.map((item) => item.id === id ? { ...item, ...changes } : item));
+
+  const resumeHeld = async () => {
+    try {
+      const result = await api.resumePaused(batchId);
+      setNotice(`Resumed ${result.resumed} paused scan(s).${result.failed ? ` ${result.failed} could not be requeued.` : ""}`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["batch-status", batchId] }),
+        queryClient.invalidateQueries({ queryKey: ["analysis-gate"] }),
+      ]);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not resume paused scans.");
+    }
+  };
 
   const cancelQueued = async () => {
     try {
@@ -116,6 +136,19 @@ export function BulkUpload({ batchId }: { batchId: string }) {
 
   const visible = showAll ? items : items.slice(0, 30);
   return <Stack gap="md">
+    {gate.data?.hold && <Alert color="yellow" icon={<AlertCircle size={16} />}
+      title={gate.data.hold.reason === "quota" ? "Gemini rate or quota limit detected" : "Gemini temporarily unavailable"}>
+      New analyses are held to avoid wasting API requests. Existing videos are saved.
+      Resume manually when capacity is available; the app does not automatically retry.
+    </Alert>}
+    {(status.data?.paused ?? 0) > 0 && <Group gap="sm">
+      <Badge color="yellow">{status.data?.paused ?? 0} awaiting Gemini capacity</Badge>
+      <Button variant="light" color="orange" size="xs"
+        leftSection={<RotateCcw size={14} />} onClick={() => void resumeHeld()}>
+        Resume paused analyses
+      </Button>
+      <Text size="xs" c="dimmed">Clears the shared Gemini hold and requeues this batch only.</Text>
+    </Group>}
     <Text size="sm" c="dimmed">Drop up to 800 rotation videos. Uploads use two concurrent connections; analysis runs through the existing background worker queue.</Text>
     <Box
       role="button"
@@ -153,6 +186,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
           {inProgress > 0 && <Badge color="blue">{inProgress} active</Badge>}
           {errors > 0 && <Badge color="red">{errors} failed</Badge>}
           {canceled > 0 && <Badge color="gray">{canceled} canceled</Badge>}
+          {pausedCount > 0 && <Badge color="yellow">{pausedCount} paused</Badge>}
         </Group>
         <Group gap="xs">
           <Button variant="default" size="xs" disabled={running} onClick={() => {
@@ -194,7 +228,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
                   <Text size="xs" fw={600} truncate>{item.file.name}</Text>
                   {item.error && <Text size="xs" c="red">{item.error}</Text>}
                 </Box>
-                <Badge size="xs" color={state === "completed" ? "green" : state === "failed" ? "red" : state === "ready" ? "gray" : "blue"}>
+                <Badge size="xs" color={state === "completed" ? "green" : state === "failed" ? "red" : state === "paused" ? "yellow" : state === "ready" ? "gray" : "blue"}>
                   {state === "completed" ? <CheckCircle2 size={12} /> : state}
                 </Badge>
               </Group>

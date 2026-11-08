@@ -6,13 +6,14 @@ import { expect, test, vi } from "vitest";
 import { api } from "../../api";
 import { ScanPage } from "./ScanPage";
 
-vi.mock("../../api", () => ({ api: { batches: vi.fn(), createBatch: vi.fn(), sample: vi.fn(), batchStatus: vi.fn() } }));
+vi.mock("../../api", () => ({ api: { batches: vi.fn(), createBatch: vi.fn(), sample: vi.fn(), batchStatus: vi.fn(), analysisGate: vi.fn() } }));
 
 test("creates a batch with the receiving date before enabling upload", async () => {
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   const batch = { id: "batch-1", name: "Morning intake", receiving_date: "2026-11-07", default_export_filename: "mrg-samples.csv", created_at: "", updated_at: "" };
   vi.mocked(api.batches).mockResolvedValue([]);
   vi.mocked(api.createBatch).mockResolvedValue(batch);
+  vi.mocked(api.analysisGate).mockResolvedValue({ hold: null });
   vi.mocked(api.batchStatus).mockResolvedValue({
     total: 0, queued: 0, processing: 0, completed: 0, failed: 0,
     needs_review: 0, items: [],
