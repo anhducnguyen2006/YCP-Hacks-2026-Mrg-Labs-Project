@@ -24,6 +24,7 @@ services:
       retries: 10
 
   api:
+    platform: ${OCR_DOCKER_PLATFORM:-linux/amd64}
     build: {context: ./backend}
     environment: &backend_env
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mrg}:${POSTGRES_PASSWORD:-mrg_local_dev}@postgres:5432/${POSTGRES_DB:-mrg_scanner}
@@ -34,6 +35,7 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
       GEMINI_THINKING_LEVEL: ${GEMINI_THINKING_LEVEL:-minimal}
       SELECTED_FRAME_COUNT: ${SELECTED_FRAME_COUNT:-8}
+      OCR_DEVICE: ${OCR_DEVICE:-cpu}
     ports: ["8000:8000"]
     volumes: [sample_media:/app/media]
     depends_on:
@@ -42,19 +44,13 @@ services:
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
   worker:
+    platform: ${OCR_DOCKER_PLATFORM:-linux/amd64}
     build: {context: ./backend}
     environment: *backend_env
     volumes: [sample_media:/app/media]
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     command: rq worker --url redis://redis:6379/0 mrg-scanner
 
   frontend:

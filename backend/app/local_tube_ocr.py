@@ -4,6 +4,7 @@ import sys
 import time
 from collections import Counter
 from datetime import datetime
+from functools import lru_cache
 
 # ---------------------------------------------------------
 # Step 0: CUDA / DLL Path Configuration & GPU Device Setup
@@ -25,10 +26,20 @@ import numpy as np
 import paddle
 from paddleocr import PaddleOCR
 
-if paddle.device.is_compiled_with_cuda():
-    paddle.device.set_device("gpu:0")
+@lru_cache(maxsize=1)
+def get_ocr():
+    """Initialize only in the worker, choosing CPU or an explicitly requested GPU."""
+    device = os.getenv("OCR_DEVICE", "cpu").strip().lower()
+    if device not in {"cpu", "gpu", "gpu:0"}:
+        raise ValueError("OCR_DEVICE must be cpu or gpu:0")
+    if device.startswith("gpu") and not paddle.device.is_compiled_with_cuda():
+        raise RuntimeError(
+            "OCR_DEVICE requests NVIDIA GPU, but this PaddlePaddle installation "
+            "does not have CUDA support. Use OCR_DEVICE=cpu or the GPU Docker override."
+        )
+    return PaddleOCR(use_textline_orientation=True, lang="en",
+                     device="gpu:0" if device.startswith("gpu") else "cpu")
 
-ocr = PaddleOCR(use_textline_orientation=True, lang="en", device="gpu")
 
 # ---------------------------------------------------------
 # Step 1: Enclosure & Selective Feature Detection
@@ -440,7 +451,7 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
         if paddle.device.is_compiled_with_cuda():
             paddle.device.cuda.synchronize()
 
-        res = ocr.predict(frame)
+        res = get_ocr().predict(frame)
 
         if paddle.device.is_compiled_with_cuda():
             paddle.device.cuda.synchronize()
@@ -452,9 +463,13 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
         data = res[0]
         texts = data.get("rec_texts", [])
         scores = data.get("rec_scores", [])
-        polys = data.get("dt_polys", [])
-        if not polys:
-            polys = data.get("rec_polys", [])
+        # rec_* arrays align after PaddleOCR's recognition-score filtering.
+        # dt_polys can contain extra boxes and mislabel annotations.
+        polys = data.get("rec_polys")
+        if polys is None:
+            polys = data.get("dt_polys")
+        if polys is None:
+            polys = []
 
         doc_res = data.get("doc_preprocessor_res", {})
         if isinstance(doc_res, dict) and "output_img" in doc_res and doc_res["output_img"] is not None:
