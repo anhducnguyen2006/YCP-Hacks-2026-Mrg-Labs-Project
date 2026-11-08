@@ -247,7 +247,10 @@ def normalize_to_mmddyy(date_raw: str):
     if alpha_match:
         day_val = int(alpha_match.group(1))
         month_str = alpha_match.group(2).upper()
-        year_val = alpha_match.group(3) if alpha_match.group(3) else datetime.now().strftime("%y")
+        year_val = alpha_match.group(3)
+        # An absent year cannot be inferred safely from today's date.
+        if not year_val:
+            return cleaned, False
         month_val = MONTH_MAP.get(month_str, "01")
         return f"{month_val}{day_val:02d}{year_val[-2:]}", True
 
@@ -263,17 +266,17 @@ def normalize_to_mmddyy(date_raw: str):
         m_val = int(num_match_trunc.group(1))
         d_val = int(num_match_trunc.group(2))
         y_val = num_match_trunc.group(3)[-2:]
-        return f"{m_val:02d}{d_val:02d}{y_val}", False
+        return cleaned, False
 
     num_match_2 = re.search(r"(\d{1,2})[-/](\d{1,2})", cleaned)
     if num_match_2:
         m_val = int(num_match_2.group(1))
         d_val = int(num_match_2.group(2))
-        curr_y = datetime.now().strftime("%y")
-        return f"{m_val:02d}{d_val:02d}{curr_y}", True
+        # Preserve incomplete handwriting verbatim for human review.
+        return cleaned, False
 
     digits_only = re.sub(r"\D", "", cleaned)
-    if len(digits_only) == 6:
+    if len(digits_only) == 6 and len(cleaned.strip()) == 6:
         return digits_only, True
 
     return cleaned, False
@@ -320,11 +323,11 @@ def parse_tube_table_data(unique_texts: dict, assay_choice: str, assay_conf: flo
 
         if alpha_date:
             norm_d, is_complete = normalize_to_mmddyy(alpha_date.group(1))
-            effective_conf = conf if is_complete else max(0.0, conf - 0.10)
+            effective_conf = conf if is_complete else min(0.49, conf)
             date_candidates.append((norm_d, effective_conf))
         elif numeric_date:
             norm_d, is_complete = normalize_to_mmddyy(numeric_date.group(1))
-            effective_conf = conf if is_complete else max(0.0, conf - 0.10)
+            effective_conf = conf if is_complete else min(0.49, conf)
             date_candidates.append((norm_d, effective_conf))
 
         # Machine
