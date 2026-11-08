@@ -3,18 +3,22 @@ import base64
 from collections.abc import Sequence
 
 from google import genai
+from google.genai import errors, types
 
 from app.config import get_settings
 from app.frame_selection import SelectedFrame
 from app.schemas import CompactExtraction
 
-
 PROMPT = """Read a laboratory sample label across these time-ordered frames of ONE rotating tube.
 Each frame may show a different section of the same cylindrical label. Combine evidence
 across images; do not concatenate unrelated characters. Do not guess unreadable handwriting.
 Return EXACTLY the JSON schema requested. Keep IDs and serial numbers as strings, preserving
-case and leading zeros when legible. Use null for missing or unreadable fields and list
-uncertain field keys under uncertain_fields or unreadable_fields. Never fabricate values.
+case and leading zeros when legible. Use null for missing or unreadable fields.
+Distinguish truly blank label boxes from visible but unreadable handwriting:
+a blank box is null but must NOT appear in unreadable_fields;
+include a field in unreadable_fields only when writing is actually visible but
+cannot be transcribed. List ambiguous partially legible writing under
+uncertain_fields. Never fabricate values.
 Large: barcode=sample_id, Date=date_sampled, Equip ID=machine,
 Sample point=component, Ref Lube=reference_lube; serial_number=null.
 Small: barcode=sample_id, Date=date_sampled, RN=machine, SN=serial_number,
@@ -38,6 +42,30 @@ confidence_reason.
 """
 
 
+class GeminiRateLimitError(RuntimeError):
+    """Gemini refused the request because this project is rate/quota limited."""
+
+
+class GeminiUnavailableError(RuntimeError):
+    """Gemini is temporarily unavailable due to service capacity."""
+
+
+def _is_status(exc: Exception, code: int) -> bool:
+    """Recognize both standard google.genai and Interactions SDK errors.
+
+    Interactions wraps some API errors in google.genai._gaos exceptions that
+    are NOT subclasses of google.genai.errors.APIError. Keep detection narrow
+    and avoid depending on private SDK module imports.
+    """
+    if isinstance(exc, errors.APIError):
+        return exc.code == code
+    if code == 429 and type(exc).__name__ == "RateLimitError":
+        return "429" in str(exc) or "rate limit" in str(exc).lower()
+    if code == 503 and type(exc).__name__ == "InternalServerError":
+        return "503" in str(exc) or "service_unavailable" in str(exc).lower()
+    return False
+
+
 def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtraction:
     if not frames:
         raise ValueError("Cannot analyze an empty set of frames.")
@@ -52,17 +80,42 @@ def analyze_selected_frames(frames: Sequence[SelectedFrame]) -> CompactExtractio
         }
         for frame in frames
     ]
-    client = genai.Client(api_key=settings.gemini_api_key)
-    interaction = client.interactions.create(
-        model=settings.gemini_model,
-        input=[{"type": "text", "text": PROMPT}, *images],
-        response_format={
-            "type": "text",
-            "mime_type": "application/json",
-            "schema": CompactExtraction.model_json_schema(),
-        },
-        generation_config={"thinking_level": settings.gemini_thinking_level},
+    # A single 429 must not keep the only worker busy for five minutes while
+    # SDK retries sleep. Retrying a project-level quota limit is a policy/UI
+    # decision made after checking usage, not part of one video extraction.
+    client = genai.Client(
+        api_key=settings.gemini_api_key,
+        http_options=types.HttpOptions(
+            retry_options=types.HttpRetryOptions(attempts=1),
+        ),
     )
+    try:
+        interaction = client.interactions.create(
+            model=settings.gemini_model,
+            input=[{"type": "text", "text": PROMPT}, *images],
+            response_format={
+                "type": "text",
+                "mime_type": "application/json",
+                "schema": CompactExtraction.model_json_schema(),
+            },
+            generation_config={"thinking_level": settings.gemini_thinking_level},
+            timeout=settings.gemini_request_timeout_seconds,
+        )
+    except Exception as exc:
+        # The Interactions API has a separate SDK exception hierarchy for 429
+        # and 503. Do not accidentally turn these into opaque "analysis failed".
+        if _is_status(exc, 429):
+            raise GeminiRateLimitError(
+                "Gemini rate or quota limit (HTTP 429). Check the selected "
+                "Google AI project and retry after its quota resets."
+            ) from exc
+        if _is_status(exc, 503):
+            raise GeminiUnavailableError(
+                "Gemini model capacity unavailable (HTTP 503). Try again later."
+            ) from exc
+        raise
+    finally:
+        client.close()
     if not interaction.output_text:
         raise RuntimeError("Gemini returned no extraction text.")
     return CompactExtraction.model_validate_json(interaction.output_text)

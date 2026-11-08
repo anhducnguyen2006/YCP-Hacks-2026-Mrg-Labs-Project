@@ -41,7 +41,8 @@ def test_exports_all_completed_records_using_current_reviewed_values(client):
         db.add(batch)
         db.flush()
         for index in range(55):
-            sample = Sample(batch_id=batch.id, processing_status="completed", label_type="large")
+            sample = Sample(batch_id=batch.id, processing_status="completed", label_type="large",
+                            review_status="pending" if index == 0 else "verified")
             db.add(sample)
             db.flush()
             db.add(SampleField(

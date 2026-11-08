@@ -1,5 +1,8 @@
 import "@mantine/core/styles.css";
 import "./styles.css";
+import "./dark-mode.css";
+import "./theme-transition.css";
+import "./palette.css";
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
@@ -11,7 +14,7 @@ const queryClient = new QueryClient();
 
 export function Root() {
   return (
-    <MantineProvider defaultColorScheme="light">
+    <MantineProvider defaultColorScheme="auto">
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <App />

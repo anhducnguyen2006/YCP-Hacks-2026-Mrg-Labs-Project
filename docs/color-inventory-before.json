@@ -1,0 +1,572 @@
+{
+  "#101820": [
+    "frontend/src/features/scan/BulkUpload.tsx",
+    "frontend/src/theme-transition.css"
+  ],
+  "#102E51": [
+    "frontend/src/styles.css"
+  ],
+  "#111B20": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#122E50": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#122E5018": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#152126": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#152A2E": [
+    "frontend/src/styles.css"
+  ],
+  "#152B1C": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#162229": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#163E2409": [
+    "frontend/src/styles.css"
+  ],
+  "#163E240A": [
+    "frontend/src/styles.css"
+  ],
+  "#163E2410": [
+    "frontend/src/styles.css"
+  ],
+  "#163E2414": [
+    "frontend/src/styles.css"
+  ],
+  "#163E2420": [
+    "frontend/src/styles.css"
+  ],
+  "#172F35": [
+    "frontend/src/styles.css"
+  ],
+  "#17383D": [
+    "frontend/src/styles.css"
+  ],
+  "#182E41": [
+    "frontend/src/styles.css"
+  ],
+  "#183348": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#19282A": [
+    "frontend/src/dark-mode.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#19292B": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#1B2930": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#1B3026": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#1C3025": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#1E5133": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#1F3328": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#20332A": [
+    "frontend/src/dark-mode.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#20332C": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#203C41": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#203D36": [
+    "frontend/src/dark-mode.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#204F31": [
+    "frontend/src/styles.css"
+  ],
+  "#22362B": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#225735": [
+    "frontend/src/styles.css"
+  ],
+  "#228B2220": [
+    "frontend/src/styles.css"
+  ],
+  "#228BE600": [
+    "frontend/src/styles.css"
+  ],
+  "#228BE61C": [
+    "frontend/src/styles.css"
+  ],
+  "#23352D": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#233D3A": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#233F30": [
+    "frontend/src/dark-mode.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#234B3212": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#244C310B": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#244C3110": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#245B36": [
+    "frontend/src/styles.css"
+  ],
+  "#246331": [
+    "frontend/src/styles.css"
+  ],
+  "#246D45": [
+    "frontend/src/styles.css"
+  ],
+  "#25633E": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#263A2F": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#263E30": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#263E45": [
+    "frontend/src/styles.css"
+  ],
+  "#27432F": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#28603C": [
+    "frontend/src/styles.css"
+  ],
+  "#288647": [
+    "frontend/src/features/scan/BulkUpload.tsx"
+  ],
+  "#294132": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#2BB673": [
+    "frontend/src/styles.css"
+  ],
+  "#2C3D39": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#304C3B": [
+    "frontend/src/dark-mode.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#31493FDF": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#32A557": [
+    "frontend/src/styles.css"
+  ],
+  "#337347": [
+    "frontend/src/styles.css"
+  ],
+  "#344A3E": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#344B5B": [
+    "frontend/src/styles.css"
+  ],
+  "#345F42": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#385044": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#385342": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#385344": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#386747": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#387642": [
+    "frontend/src/styles.css"
+  ],
+  "#3B5146": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#3B514A": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#3D5248": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#3E6050": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#402429": [
+    "frontend/src/styles.css"
+  ],
+  "#403B21": [
+    "frontend/src/dark-mode.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#455867": [
+    "frontend/src/styles.css"
+  ],
+  "#455E50": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#45624F": [
+    "frontend/src/styles.css"
+  ],
+  "#49795A": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#4A6258": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#4C6655": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#4C6756": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#526459": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#526B5A": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#53635A": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#536575": [
+    "frontend/src/styles.css"
+  ],
+  "#53665D": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#53665E": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#53675A": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#557E60": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#586B64": [
+    "frontend/src/styles.css"
+  ],
+  "#587263": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#5B7C7D": [
+    "frontend/src/styles.css"
+  ],
+  "#62756A": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#62756B": [
+    "frontend/src/styles.css"
+  ],
+  "#628D6C": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#64866B": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#65C18C": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#667C73": [
+    "frontend/src/styles.css"
+  ],
+  "#66816C": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#668671": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#6A8172": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#6A8D72": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#6C7E71": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#79581E": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#85D2A5": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#87B59B66": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#95B69F": [
+    "frontend/src/styles.css"
+  ],
+  "#9CC9A8": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#A6B8AD": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#A7C9B0": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#A7D7B5": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#A8C8B1": [
+    "frontend/src/styles.css"
+  ],
+  "#A9C7B1": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#AFC0B6": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#B0D1B9": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#B3CDBB": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#B4C5BA": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#B5D1BC": [
+    "frontend/src/styles.css"
+  ],
+  "#B6DDC0": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#B9CDC1": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#BAE5C6": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#BBC4B6": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#BDD3C3": [
+    "frontend/src/styles.css"
+  ],
+  "#BFCFC7": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#C1D1C7": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#C1E0C8": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#C3D8CA": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#C5D7CB": [
+    "frontend/src/styles.css"
+  ],
+  "#C8DED0": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#C9DCDA": [
+    "frontend/src/styles.css"
+  ],
+  "#C9EAD3": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#CBDACF": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#CFDDD2": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#D0EDDC": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#D2DFD6": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#D5E5D6": [
+    "frontend/src/styles.css"
+  ],
+  "#D63838": [
+    "frontend/src/styles.css"
+  ],
+  "#D7E9DD": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#D8E2DA": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#D9E9DE": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#D9EDDD": [
+    "frontend/src/features/batches/WelcomePage.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#DBE7DF": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#DCE5DF": [
+    "frontend/src/styles.css"
+  ],
+  "#DCE7DF": [
+    "frontend/src/styles.css"
+  ],
+  "#E0E7E3": [
+    "frontend/src/styles.css"
+  ],
+  "#E0E9EF": [
+    "frontend/src/styles.css"
+  ],
+  "#E0EBE4": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#E0F1EA": [
+    "frontend/src/features/batches/WelcomePage.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#E1E8E3": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#E1EBE5": [
+    "frontend/src/styles.css"
+  ],
+  "#E2ECE6": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#E36D6D": [
+    "frontend/src/styles.css"
+  ],
+  "#E3E9E6": [
+    "frontend/src/styles.css"
+  ],
+  "#E5ECE6": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#E5EFE9": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#E6EEEC": [
+    "frontend/src/styles.css"
+  ],
+  "#E7F1EC": [
+    "frontend/src/styles.css"
+  ],
+  "#E7F4EC": [
+    "frontend/src/features/batches/WelcomePage.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#E7F6EB": [
+    "frontend/src/styles.css"
+  ],
+  "#EDF1EE": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#EDF4EE": [
+    "frontend/src/styles.css"
+  ],
+  "#EDF5EF": [
+    "frontend/src/styles.css"
+  ],
+  "#EEF5EE": [
+    "frontend/src/styles.css"
+  ],
+  "#F0F6F1": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#F1D58B": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#F1F5F3": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#F1F6ED": [
+    "frontend/src/features/batches/WelcomePage.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#F1F6F3": [
+    "frontend/src/styles.css"
+  ],
+  "#F2F8F4": [
+    "frontend/src/styles.css"
+  ],
+  "#F3DEB2": [
+    "frontend/src/dark-mode.css"
+  ],
+  "#F3F6F4": [
+    "frontend/src/styles.css"
+  ],
+  "#F3F7F2": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#F3F9F5": [
+    "frontend/src/styles.css"
+  ],
+  "#F6F3E9": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#F6FAF7": [
+    "frontend/src/features/batches/WelcomePage.css"
+  ],
+  "#F7FAF8": [
+    "frontend/src/styles.css"
+  ],
+  "#F7FAF9": [
+    "frontend/src/styles.css"
+  ],
+  "#F8FBFC": [
+    "frontend/src/styles.css"
+  ],
+  "#FAFCFB": [
+    "frontend/src/styles.css"
+  ],
+  "#FBFCFA": [
+    "frontend/src/features/batches/WelcomePage.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#FFF0F0": [
+    "frontend/src/styles.css"
+  ],
+  "#FFF9E9": [
+    "frontend/src/styles.css"
+  ],
+  "#FFFFFF": [
+    "frontend/src/dark-mode.css",
+    "frontend/src/features/batches/WelcomePage.css",
+    "frontend/src/styles.css",
+    "frontend/src/theme-transition.css"
+  ],
+  "#FFFFFF80": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#FFFFFFC9": [
+    "frontend/src/styles.css"
+  ],
+  "#FFFFFFDC": [
+    "frontend/src/theme-transition.css"
+  ],
+  "#FFFFFFED": [
+    "frontend/src/theme-transition.css"
+  ]
+}

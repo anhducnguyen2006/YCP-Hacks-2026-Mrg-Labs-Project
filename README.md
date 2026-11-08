@@ -2,6 +2,8 @@
 
 MRG Sample Scanner digitizes short rotation videos of cylindrical laboratory sample labels.
 
+> This guide describes the updated `feat/researcher-workspace-simplification` branch. `main` does not yet contain all of that branch's features. Follow the branch-selection step below to run the researcher workspace described here.
+
 ## Current implementation
 
 - React + Mantine researcher workspace: Scan, Samples, Export, Settings, plus a header Help guide.

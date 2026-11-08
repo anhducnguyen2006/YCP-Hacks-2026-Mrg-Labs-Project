@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.6-flash"
     gemini_thinking_level: str = "minimal"
+    gemini_request_timeout_seconds: int = 120
     selected_frame_count: int = 8
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

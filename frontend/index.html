@@ -3,8 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Run before styles and React: no light flash on a saved/system dark start.
+      (() => {
+        let preference = 'auto';
+        try {
+          const saved = localStorage.getItem('mantine-color-scheme-value');
+          if (saved === 'light' || saved === 'dark' || saved === 'auto') preference = saved;
+        } catch { /* System preference still works when storage is unavailable. */ }
+        const dark = preference === 'dark' || (preference === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.mantineColorScheme = dark ? 'dark' : 'light';
+      })();
+    </script>
+    <style>html{background:#fff;color-scheme:light}html[data-mantine-color-scheme="dark"]{background:#101820;color-scheme:dark}</style>
     <meta name="theme-color" content="#0f766e" />
-    <title>MRG Sample Scanner</title>
+    <title>GreaseFreeData | MRG Laboratories</title>
   </head>
   <body>
     <div id="root"></div>

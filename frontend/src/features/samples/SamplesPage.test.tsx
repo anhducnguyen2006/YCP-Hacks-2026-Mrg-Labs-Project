@@ -9,7 +9,7 @@ import { SamplesPage } from "./SamplesPage";
 vi.mock("../../api", () => ({
   api: {
     batches: vi.fn(), inventory: vi.fn(), sample: vi.fn(), updateField: vi.fn(), mediaUrl: (id: string) => `/api/media/${id}`,
-    deleteSamples: vi.fn(),
+    deleteSamples: vi.fn(), batchQuality: vi.fn(), verifySample: vi.fn(), reopenSample: vi.fn(),
   },
 }));
 
@@ -26,6 +26,7 @@ test("opens an editable inspector directly from the Samples inventory", async ()
       status: "extracted", review_required: true, reviewed: false, review_reason: null,
     }],
   };
+  vi.mocked(api.batchQuality).mockResolvedValue({ consensus_year: null, scanned: 1, flags: {} });
   vi.mocked(api.batches).mockResolvedValue([{
     id: "batch-1", name: "Test batch", receiving_date: "2026-11-07",
     default_export_filename: "samples.csv", created_at: "", updated_at: "",
@@ -35,18 +36,45 @@ test("opens an editable inspector directly from the Samples inventory", async ()
   const onUpdate = { ...sample, fields: [{ ...sample.fields[0], current_value: "00042", reviewed: true, review_required: false }] };
   vi.mocked(api.updateField).mockResolvedValue(onUpdate);
   render(<MantineProvider><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <MemoryRouter><SamplesPage /></MemoryRouter>
+    <MemoryRouter initialEntries={["/samples?batch=batch-1"]}><SamplesPage /></MemoryRouter>
   </QueryClientProvider></MantineProvider>);
 
-  fireEvent.click(screen.getByRole("textbox", { name: "Choose batch" }));
-  fireEvent.click(await screen.findByRole("option", { name: "Test batch" }));
   fireEvent.click(await screen.findByRole("button", { name: "Inspect / edit" }));
 
   await screen.findByText("Sample details & verification");
   await screen.findByText("Source video & selected frames");
-  fireEvent.click(screen.getByRole("button", { name: "Edit / verify" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit field" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Sample ID" }), { target: { value: "00042" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save & verify field" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save change" }));
   await waitFor(() => expect(api.updateField).toHaveBeenCalledWith("sample-1", "sample_id", "00042"));
-  expect(await screen.findByText("Field saved and marked as verified.")).toBeInTheDocument();
+  expect(await screen.findByText("Change saved. Verify the complete sample after checking its original label.")).toBeInTheDocument();
+});
+
+test("selects all current-page samples and closes the inspector in one action", async () => {
+  vi.mocked(api.batchQuality).mockResolvedValue({ consensus_year: null, scanned: 1, flags: {} });
+  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  const sample: Sample = {
+    id: "sample-1", batch_id: "batch-1", external_sample_id: "00123",
+    label_type: "small", processing_status: "completed", review_status: "pending",
+    ai_confidence: "high", ai_confidence_reason: null,
+    created_at: "", updated_at: "", fields: [], media: [], latest_job: null,
+  };
+  vi.mocked(api.batches).mockResolvedValue([{
+    id: "batch-1", name: "Test batch", receiving_date: "2026-11-07",
+    default_export_filename: "samples.csv", created_at: "", updated_at: "",
+  }]);
+  vi.mocked(api.inventory).mockResolvedValue({ total: 1, items: [sample] });
+  vi.mocked(api.sample).mockResolvedValue(sample);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<MantineProvider><QueryClientProvider client={client}>
+    <MemoryRouter initialEntries={["/samples?batch=batch-1"]}>
+      <SamplesPage />
+    </MemoryRouter>
+  </QueryClientProvider></MantineProvider>);
+  fireEvent.click(await screen.findByRole("button", { name: "Select all on page (1)" }));
+  expect(screen.getByRole("checkbox", { name: "Select sample 00123" })).toBeChecked();
+  fireEvent.click(screen.getByRole("button", { name: "Inspect / edit" }));
+  expect(await screen.findByText("Sample details & verification")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Close modal" }));
+  await waitFor(() => expect(screen.queryByText("Sample details & verification")).not.toBeInTheDocument());
 });

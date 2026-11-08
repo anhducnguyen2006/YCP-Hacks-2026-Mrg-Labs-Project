@@ -1,9 +1,9 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { Alert, Badge, Box, Button, Checkbox, Group, Loader, Modal, Paper, Select, Stack, Table, Text, TextInput, ThemeIcon, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, FlaskConical, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import { api } from "../../api";
+import { api, type QualityFlag } from "../../api";
 import { sampleColumns } from "./columns";
 import { ConfidenceExplanation, SampleConfidence } from "./SampleConfidence";
 import { SampleInspector } from "./SampleInspector";
@@ -23,10 +23,9 @@ const SORT_OPTIONS = [
 export function SamplesPage() {
   const client = useQueryClient();
   const [params, setParams] = useSearchParams();
-  const initialBatch = params.get("batch");
-  const initialSample = params.get("sample");
-  const [batchId, setBatchId] = useState<string | null>(initialBatch);
-  const [inspectedId, setInspectedId] = useState<string | null>(initialSample);
+  // URL params are the single source of truth: closing cannot be undone by an effect.
+  const batchId = params.get("batch");
+  const inspectedId = params.get("sample");
   const [inspected, setInspected] = useState<import("../../api").Sample | null>(null);
   const [editNotice, setEditNotice] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
@@ -39,10 +38,11 @@ export function SamplesPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
 
   const batches = useQuery({ queryKey: ["batches"], queryFn: api.batches, retry: false });
   const inventory = useQuery({
-    queryKey: ["inventory", batchId, deferredSearch, status, confidence, sortBy, direction, offset],
+    queryKey: ["inventory", batchId, deferredSearch, status, confidence, sortBy, direction, offset, flaggedOnly],
     queryFn: () => api.inventory(batchId!, {
       search: deferredSearch,
       status: status ?? "all",
@@ -50,7 +50,14 @@ export function SamplesPage() {
       sortBy: sortBy ?? "created_at",
       descending: direction !== "asc",
       offset,
+      flaggedOnly,
     }),
+    enabled: Boolean(batchId),
+    retry: false,
+  });
+  const quality = useQuery({
+    queryKey: ["quality", batchId],
+    queryFn: () => api.batchQuality(batchId!),
     enabled: Boolean(batchId),
     retry: false,
   });
@@ -62,36 +69,34 @@ export function SamplesPage() {
   });
   const currentDetail = inspected?.id === inspectedId ? inspected : detail.data;
   const openInspector = (sampleId: string) => {
-    setInspectedId(sampleId);
     setInspected(null);
     setEditNotice(null);
     setParams({ batch: batchId!, sample: sampleId });
   };
   const closeInspector = () => {
-    setInspectedId(null);
     setInspected(null);
     setEditNotice(null);
     if (batchId) setParams({ batch: batchId });
     else setParams({});
   };
-  useEffect(() => {
-    // Support historical links to a sample without requiring manual batch selection.
-    const requestedBatch = params.get("batch");
-    const requestedSample = params.get("sample");
-    if (requestedBatch && requestedBatch !== batchId) setBatchId(requestedBatch);
-    if (requestedSample && requestedSample !== inspectedId) setInspectedId(requestedSample);
-  }, [params, batchId, inspectedId]);
   const onFieldSaved = (updated: import("../../api").Sample) => {
     setInspected(updated);
     client.setQueryData(["sample", updated.id], updated);
     void client.invalidateQueries({ queryKey: ["inventory", updated.batch_id] });
-    setEditNotice("Field saved and marked as verified.");
+    void client.invalidateQueries({ queryKey: ["quality", updated.batch_id] });
+    setEditNotice(updated.review_status === "verified"
+      ? "Sample verified."
+      : "Change saved. Verify the complete sample after checking its original label.");
   };
   const rows = inventory.data?.items ?? [];
   const total = inventory.data?.total ?? 0;
-  const pageIds = rows.map((sample) => sample.id);
+  const flagged = quality.data?.flags ?? {};
+  const visibleRows = rows;
+  const pageIds = visibleRows.map((sample) => sample.id);
   const allOnPage = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
   const someOnPage = pageIds.some((id) => selectedIds.includes(id));
+  const selectPage = () =>
+    setSelectedIds((previous) => [...new Set([...previous, ...pageIds])]);
   const resetList = () => { setOffset(0); setSelectedIds([]); setNotice(null); };
   const toggleSelection = (id: string, checked: boolean) =>
     setSelectedIds((previous) => checked ? [...new Set([...previous, id])] : previous.filter((item) => item !== id));
@@ -122,7 +127,7 @@ export function SamplesPage() {
     <Paper withBorder radius="lg" p="lg">
       <Select label="Choose batch" searchable placeholder="Choose a batch to browse"
         data={(batches.data ?? []).map((batch) => ({ value: batch.id, label: batch.name }))}
-        value={batchId} onChange={(value) => { setBatchId(value); setInspectedId(null); setInspected(null); setParams(value ? { batch: value } : {}); resetList(); setSearch(""); }}
+        value={batchId} onChange={(value) => { setInspected(null); setParams(value ? { batch: value } : {}); resetList(); setSearch(""); }}
         disabled={batches.isLoading || batches.isError}
       />
       <Text size="xs" c="dimmed" mt="xs">The controls below search and sort records within this selected batch.</Text>
@@ -155,8 +160,13 @@ export function SamplesPage() {
         <Select label="Sort by" value={sortBy} onChange={(value) => { setSortBy(value); resetList(); }} data={SORT_OPTIONS} />
         <Select label="Order" value={direction} onChange={(value) => { setDirection(value); resetList(); }}
           data={[{ value: "asc", label: "Ascending" }, { value: "desc", label: "Descending" }]} />
-        <Button variant="default" loading={inventory.isFetching} leftSection={<RefreshCw size={16} />}
-          onClick={() => void inventory.refetch()}>Refresh</Button>
+        <Button variant={flaggedOnly ? "filled" : "outline"} color="red"
+          onClick={() => { setFlaggedOnly((value) => !value); setSelectedIds([]); }}>
+          {flaggedOnly ? "Show all samples" : "Show flagged samples"}
+        </Button>
+        <Button variant="default" loading={inventory.isFetching || quality.isFetching}
+          leftSection={<RefreshCw size={16} />}
+          onClick={() => { void inventory.refetch(); void quality.refetch(); }}>Refresh</Button>
       </Group>
     </Paper>}
 
@@ -168,6 +178,8 @@ export function SamplesPage() {
           <Badge color="gray" variant="light">{total} matching</Badge>
         </Group>
         <Group>
+          {pageIds.length > 0 && <Button variant="default" size="xs"
+            disabled={allOnPage} onClick={selectPage}>Select all on page ({pageIds.length})</Button>}
           {selectedIds.length > 0 && <>
             <Text size="xs" c="dimmed">{selectedIds.length} selected</Text>
             <Button variant="default" size="xs" onClick={() => setSelectedIds([])}>Clear selection</Button>
@@ -176,9 +188,20 @@ export function SamplesPage() {
           </>}
         </Group>
       </Group>
-      <Box px="lg" pb="sm"><ConfidenceExplanation /></Box>
-      <Table.ScrollContainer minWidth={1450}>
-        <Table className="review-table" verticalSpacing="md" horizontalSpacing="lg">
+      <Box px="lg" pb="sm">
+        <ConfidenceExplanation />
+        <Group gap="xs" mt="xs">
+          <Text size="xs" c="dimmed">
+            {quality.data?.consensus_year != null
+              ? `Batch's provisional consensus year: ${quality.data.consensus_year}.`
+              : "No reliable batch-year consensus yet."}
+            {" "}Red alerts are review prompts, not automatic corrections.
+          </Text>
+          {quality.isError && <Text size="xs" c="red">Quality warnings unavailable.</Text>}
+        </Group>
+      </Box>
+      <Table.ScrollContainer minWidth={1160}>
+        <Table className="review-table" verticalSpacing="sm" horizontalSpacing="xs">
           <Table.Thead><Table.Tr>
             <Table.Th>
               <Checkbox aria-label="Select all samples on this page" color="green"
@@ -191,20 +214,28 @@ export function SamplesPage() {
             </Table.Th>
             {sampleColumns.map(({ key, label }) => <Table.Th key={key}>{label}</Table.Th>)}
             <Table.Th>AI confidence</Table.Th>
+            <Table.Th>Verification</Table.Th>
             <Table.Th>Processing</Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr></Table.Thead>
-          <Table.Tbody>{rows.map((sample) => <Table.Tr key={sample.id} onClick={() => openInspector(sample.id)} style={{ cursor: "pointer" }} aria-label={`Inspect sample ${sample.external_sample_id || sample.id}`}>
+          <Table.Tbody>{visibleRows.map((sample) => <Table.Tr key={sample.id} onClick={() => openInspector(sample.id)} style={{ cursor: "pointer" }} aria-label={`Inspect sample ${sample.external_sample_id || sample.id}`}>
             <Table.Td onClick={(event) => event.stopPropagation()}>
               <Checkbox color="green" aria-label={`Select sample ${sample.external_sample_id || sample.id}`}
                 checked={selectedIds.includes(sample.id)}
                 onClick={(event) => event.stopPropagation()}
                 onChange={(event) => toggleSelection(sample.id, event.currentTarget.checked)} />
             </Table.Td>
-            {sampleColumns.map(({ key }) => <Table.Td key={key}>
-              {sample.fields.find((field) => field.field_key === key)?.current_value ?? ""}
-            </Table.Td>)}
+            {sampleColumns.map(({ key }) => {
+              const warning = (flagged[sample.id] ?? []).find((item) => item.field_key === key);
+              return <Table.Td key={key} className={warning && sample.review_status !== "verified" ? "quality-cell-warning" : undefined}
+                title={warning?.message}>
+                {sample.fields.find((field) => field.field_key === key)?.current_value ?? ""}
+                {warning && sample.review_status !== "verified" && <Text size="xs" c="red" fw={700}>Check</Text>}
+              </Table.Td>;
+            })}
             <Table.Td><SampleConfidence sample={sample} /></Table.Td>
+            <Table.Td><Badge color={sample.review_status === "verified" ? "green" : "yellow"}
+              variant="light">{sample.review_status === "verified" ? "Verified" : "Needs review"}</Badge></Table.Td>
             <Table.Td><Badge color={sample.processing_status === "completed" ? "green" : sample.processing_status === "failed" ? "red" : "blue"}
               variant="light">{sample.processing_status}</Badge></Table.Td>
             <Table.Td><Button size="compact-xs" color="green" variant="subtle"
@@ -216,7 +247,10 @@ export function SamplesPage() {
       {(batches.isLoading || inventory.isLoading) && <Group justify="center" p="lg"><Loader size="sm" /><Text size="sm">Loading records…</Text></Group>}
       {inventory.isError && <Alert color="red" m="lg">Unable to load sample records: {inventory.error.message}</Alert>}
       {!batchId && <Text c="dimmed" size="sm" ta="center" p="xl">Choose a batch to see its samples.</Text>}
-      {batchId && inventory.isSuccess && rows.length === 0 && <Text c="dimmed" size="sm" ta="center" p="xl">No samples match the current filters.</Text>}
+      {batchId && inventory.isSuccess && visibleRows.length === 0 &&
+        <Text c="dimmed" size="sm" ta="center" p="xl">
+          {flaggedOnly ? "No flagged, unverified samples match the filters." : "No samples match the current filters."}
+        </Text>}
       <Group justify="space-between" p="lg">
         <Text size="xs" c="dimmed">{batchId ? `Showing ${total === 0 ? 0 : offset + 1}–${Math.min(offset + 50, total)} of ${total} records` : "50 records per page"}</Text>
         <Group>
@@ -230,11 +264,14 @@ export function SamplesPage() {
     {notice && <Alert color="green" role="status">{notice}</Alert>}
 
     <Modal opened={Boolean(inspectedId)} onClose={closeInspector} title="Sample details & verification"
+      closeButtonProps={{ "aria-label": "Close modal" }}
       size="95%" centered styles={{ body: { padding: "16px" } }}>
       {detail.isLoading && !currentDetail && <Group justify="center" p="xl"><Loader size="sm" /><Text>Loading sample details…</Text></Group>}
       {detail.isError && !currentDetail && <Alert color="red">Could not load sample: {detail.error.message}</Alert>}
       {editNotice && <Alert color="green" mb="md" role="status">{editNotice}</Alert>}
-      {currentDetail && <SampleInspector key={currentDetail.id} sample={currentDetail} onSaved={onFieldSaved} />}
+      {currentDetail && <SampleInspector key={currentDetail.id}
+        sample={currentDetail} onSaved={onFieldSaved}
+        qualityFlags={(flagged[currentDetail.id] ?? []) as QualityFlag[]} />}
     </Modal>
 
     <Modal opened={confirmOpen} onClose={() => !removal.isPending && setConfirmOpen(false)}
