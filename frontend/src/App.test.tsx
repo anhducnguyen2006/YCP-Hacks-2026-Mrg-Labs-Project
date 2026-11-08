@@ -14,6 +14,7 @@ test("renders the sample scanner navigation", () => {
     </MantineProvider>,
   );
   expect(screen.getByRole("img", { name: "MRG Laboratories" })).toBeInTheDocument();
+  expect(screen.getByText("GreaseFreeData")).toBeInTheDocument();
   expect(screen.getByText("Export")).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Review" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Batches" })).not.toBeInTheDocument();
