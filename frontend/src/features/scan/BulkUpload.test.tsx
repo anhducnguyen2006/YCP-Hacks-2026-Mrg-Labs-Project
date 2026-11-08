@@ -1,13 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { api, type Sample } from "../../api";
 import { BulkUpload } from "./BulkUpload";
 
 vi.mock("../../api", () => ({
   api: { uploadSample: vi.fn(), analyze: vi.fn(), batchStatus: vi.fn(), cancelQueued: vi.fn(), analysisGate: vi.fn(), resumePaused: vi.fn() },
 }));
+
+// Clear spy call histories between scenarios without removing their implementations.
+beforeEach(() => vi.clearAllMocks());
 
 test("selects multiple videos and automatically enqueues analysis after upload", async () => {
   vi.mocked(api.analysisGate).mockResolvedValue({ hold: null });
