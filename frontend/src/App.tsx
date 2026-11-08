@@ -67,7 +67,7 @@ function Layout() {
       <AppShell.Main><Outlet /></AppShell.Main>
       <Modal opened={helpOpened} onClose={help.close} title="How to use Sample Scanner" centered size="lg">
         <Stack gap="md">
-          <Text size="sm"><strong>1. Scan:</strong> Choose or create a batch, then drop one or more rotation videos onto the upload area (or click it to browse). Choose Upload & analyze.</Text>
+          <Text size="sm"><strong>1. Scan:</strong> Choose or create a batch, then upload rotation videos or record one with your desktop camera. Choose Upload & analyze.</Text>
           <Text size="sm"><strong>2. Samples:</strong> Search, sort, and filter samples by confidence.
             Click a row to compare the original video and extracted frames, edit values, and verify readings.</Text>
           <Text size="sm"><strong>3. Export:</strong> Select a batch and download its completed records
