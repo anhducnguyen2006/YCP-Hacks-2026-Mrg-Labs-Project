@@ -41,7 +41,7 @@ function Layout() {
                 <img src="/mrg-laboratories.png" alt="" className="brand-logo brand-logo-light" />
                 <img src="/mrg-laboratories-dark-clean.svg" alt="" className="brand-logo brand-logo-dark" />
               </span>
-              <Text className="brand-app-name" fw={700}>Sample Label Digitizer</Text>
+              <Text className="brand-app-name" fw={700}>GreaseFreeData</Text>
             </UnstyledButton>
           </Group>
           <Group gap="sm">
