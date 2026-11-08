@@ -4,6 +4,7 @@ import sys
 import time
 from collections import Counter
 from datetime import datetime
+from functools import lru_cache
 
 # ---------------------------------------------------------
 # Step 0: CUDA / DLL Path Configuration & GPU Device Setup
@@ -25,10 +26,20 @@ import numpy as np
 import paddle
 from paddleocr import PaddleOCR
 
-if paddle.device.is_compiled_with_cuda():
-    paddle.device.set_device("gpu:0")
+@lru_cache(maxsize=1)
+def get_ocr():
+    """Initialize only in the worker, choosing CPU or an explicitly requested GPU."""
+    device = os.getenv("OCR_DEVICE", "cpu").strip().lower()
+    if device not in {"cpu", "gpu", "gpu:0"}:
+        raise ValueError("OCR_DEVICE must be cpu or gpu:0")
+    if device.startswith("gpu") and not paddle.device.is_compiled_with_cuda():
+        raise RuntimeError(
+            "OCR_DEVICE requests NVIDIA GPU, but this PaddlePaddle installation "
+            "does not have CUDA support. Use OCR_DEVICE=cpu or the GPU Docker override."
+        )
+    return PaddleOCR(use_textline_orientation=True, lang="en",
+                     device="gpu:0" if device.startswith("gpu") else "cpu")
 
-ocr = PaddleOCR(use_textline_orientation=True, lang="en", device="gpu")
 
 # ---------------------------------------------------------
 # Step 1: Enclosure & Selective Feature Detection
@@ -236,7 +247,10 @@ def normalize_to_mmddyy(date_raw: str):
     if alpha_match:
         day_val = int(alpha_match.group(1))
         month_str = alpha_match.group(2).upper()
-        year_val = alpha_match.group(3) if alpha_match.group(3) else datetime.now().strftime("%y")
+        year_val = alpha_match.group(3)
+        # An absent year cannot be inferred safely from today's date.
+        if not year_val:
+            return cleaned, False
         month_val = MONTH_MAP.get(month_str, "01")
         return f"{month_val}{day_val:02d}{year_val[-2:]}", True
 
@@ -252,17 +266,17 @@ def normalize_to_mmddyy(date_raw: str):
         m_val = int(num_match_trunc.group(1))
         d_val = int(num_match_trunc.group(2))
         y_val = num_match_trunc.group(3)[-2:]
-        return f"{m_val:02d}{d_val:02d}{y_val}", False
+        return cleaned, False
 
     num_match_2 = re.search(r"(\d{1,2})[-/](\d{1,2})", cleaned)
     if num_match_2:
         m_val = int(num_match_2.group(1))
         d_val = int(num_match_2.group(2))
-        curr_y = datetime.now().strftime("%y")
-        return f"{m_val:02d}{d_val:02d}{curr_y}", True
+        # Preserve incomplete handwriting verbatim for human review.
+        return cleaned, False
 
     digits_only = re.sub(r"\D", "", cleaned)
-    if len(digits_only) == 6:
+    if len(digits_only) == 6 and len(cleaned.strip()) == 6:
         return digits_only, True
 
     return cleaned, False
@@ -309,11 +323,11 @@ def parse_tube_table_data(unique_texts: dict, assay_choice: str, assay_conf: flo
 
         if alpha_date:
             norm_d, is_complete = normalize_to_mmddyy(alpha_date.group(1))
-            effective_conf = conf if is_complete else max(0.0, conf - 0.10)
+            effective_conf = conf if is_complete else min(0.49, conf)
             date_candidates.append((norm_d, effective_conf))
         elif numeric_date:
             norm_d, is_complete = normalize_to_mmddyy(numeric_date.group(1))
-            effective_conf = conf if is_complete else max(0.0, conf - 0.10)
+            effective_conf = conf if is_complete else min(0.49, conf)
             date_candidates.append((norm_d, effective_conf))
 
         # Machine
@@ -411,9 +425,9 @@ def parse_tube_table_data(unique_texts: dict, assay_choice: str, assay_conf: flo
 def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"):
     total_start_time = time.perf_counter()
 
-    print(f"\n=======================================================")
+    print("\n=======================================================")
     print(f"Loading and processing: {video_path}")
-    print(f"=======================================================")
+    print("=======================================================")
     os.makedirs(output_dir, exist_ok=True)
     debug_crop_dir = os.path.join(output_dir, "debug_crops")
     os.makedirs(debug_crop_dir, exist_ok=True)
@@ -440,7 +454,7 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
         if paddle.device.is_compiled_with_cuda():
             paddle.device.cuda.synchronize()
 
-        res = ocr.predict(frame)
+        res = get_ocr().predict(frame)
 
         if paddle.device.is_compiled_with_cuda():
             paddle.device.cuda.synchronize()
@@ -452,9 +466,13 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
         data = res[0]
         texts = data.get("rec_texts", [])
         scores = data.get("rec_scores", [])
-        polys = data.get("dt_polys", [])
-        if not polys:
-            polys = data.get("rec_polys", [])
+        # rec_* arrays align after PaddleOCR's recognition-score filtering.
+        # dt_polys can contain extra boxes and mislabel annotations.
+        polys = data.get("rec_polys")
+        if polys is None:
+            polys = data.get("dt_polys")
+        if polys is None:
+            polys = []
 
         doc_res = data.get("doc_preprocessor_res", {})
         if isinstance(doc_res, dict) and "output_img" in doc_res and doc_res["output_img"] is not None:
@@ -537,7 +555,7 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
     # Resolve Assay (GS vs NGS) with Diagnostic Logging
     mean_gs = float(np.mean(gs_scores_all)) if gs_scores_all else 0.0
     mean_ngs = float(np.mean(ngs_scores_all)) if ngs_scores_all else 0.0
-    print(f"\n================ Assay Decision Diagnostic ================")
+    print("\n================ Assay Decision Diagnostic ================")
     print(f"Overall GS Score: {mean_gs:.3f} | Overall NGS Score: {mean_ngs:.3f}")
     if mean_gs > mean_ngs:
         chosen_assay = "GS"
@@ -553,7 +571,7 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
         print("Result -> Indeterminate Assay Choice")
 
     # Resolve Passage Digit with Diagnostic Logging
-    print(f"\n================ Passage Decision Diagnostic ================")
+    print("\n================ Passage Decision Diagnostic ================")
     resolved_passage = None
     passage_conf = 0.85
     if unicode_passages:
@@ -621,7 +639,7 @@ def process_tube_video(video_path: str, output_dir: str = "extracted_ocr_frames"
     print("           PERFORMANCE TIMING")
     print("=" * 45)
     print(f"Keyframe Extraction ({len(keyframes)} frames) : {kf_duration:.3f} s")
-    print(f"GPU OCR Inference & Enclosure: {ocr_duration:.3f} s")
+    print(f"Local OCR Inference & Enclosure: {ocr_duration:.3f} s")
     print(f"Average Latency Per Keyframe : {avg_frame_time:.3f} s")
     print(f"Total Pipeline Runtime       : {total_duration:.3f} s")
     print("=" * 45 + "\n")

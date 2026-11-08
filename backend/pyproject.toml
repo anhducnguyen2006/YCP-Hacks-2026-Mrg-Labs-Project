@@ -20,8 +20,8 @@ dependencies = [
   "google-genai>=3.0,<4",
   "numpy>=1.26,<3",
   "opencv-python-headless>=4.10,<5",
-  "paddlepaddle-gpu", 
-  "paddleocr", 
+  "paddlepaddle>=3.2,<4",
+  "paddleocr>=3.2,<4",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +38,8 @@ target-version = "py312"
 # FastAPI intentionally uses Depends(...) and File(...) as endpoint defaults.
 # Restrict this exception to the API routes, not the rest of the codebase.
 "app/main.py" = ["B008"]
+# Windows DLL configuration must run before importing Paddle.
+"app/local_tube_ocr.py" = ["E402"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

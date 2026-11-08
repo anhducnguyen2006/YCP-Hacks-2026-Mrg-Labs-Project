@@ -119,3 +119,31 @@ def test_blank_serial_number_is_not_confused_with_unreadable(client):
     assert blank_id not in report["flags"]
     assert any(flag["code"] == "unreadable" and flag["field_key"] == "serial_number"
                for flag in report["flags"][unreadable_id])
+
+
+
+def test_low_ocr_score_is_flagged_but_blank_optional_serial_is_not(client):
+    http, engine = client
+    with Session(engine) as db:
+        batch = Batch(name="OCR quality", receiving_date="2026-11-07")
+        db.add(batch)
+        db.flush()
+        sample = Sample(batch_id=batch.id, label_type="small", processing_status="completed")
+        db.add(sample)
+        db.flush()
+        db.add_all([
+            SampleField(sample_id=sample.id, field_key="serial_number",
+                        current_value=None, status="missing"),
+            SampleField(sample_id=sample.id, field_key="machine",
+                        current_value="UP 5258", status="extracted",
+                        confidence=0.67, confidence_source="paddleocr_cpu"),
+            SampleField(sample_id=sample.id, field_key="date_sampled",
+                        current_value="2026-11-08", status="extracted",
+                        confidence=0.97, confidence_source="paddleocr_cpu"),
+        ])
+        db.commit()
+        bid, sid = batch.id, sample.id
+    flags = http.get(f"/api/batches/{bid}/quality").json()["flags"][sid]
+    assert any(f["code"] == "low_ocr_score" and f["field_key"] == "machine"
+               for f in flags)
+    assert not any(f["field_key"] == "serial_number" for f in flags)

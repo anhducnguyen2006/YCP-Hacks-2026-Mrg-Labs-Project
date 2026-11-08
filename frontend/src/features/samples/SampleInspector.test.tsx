@@ -57,3 +57,28 @@ test("verifies the entire sample in a single explicit action", async () => {
   await waitFor(() => expect(api.verifySample).toHaveBeenCalledWith("sample-2"));
   expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ review_status: "verified" }));
 });
+
+test("shows actual per-field OCR recognition scores and distinguishes heuristic scores", () => {
+  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  const sample: Sample = {
+    id: "sample-3", batch_id: "batch-1", external_sample_id: "00123",
+    label_type: "small", processing_status: "completed", review_status: "pending",
+    ai_confidence: "low", ai_confidence_reason: "Low OCR recognition scores",
+    created_at: "", updated_at: "", media: [], latest_job: null,
+    fields: [
+      { id: "one", field_key: "sample_id", predicted_value: "00123",
+        current_value: "00123", confidence: .67, confidence_source: "paddleocr_cpu",
+        status: "extracted", review_required: true, reviewed: false,
+        review_reason: "Low OCR score" },
+      { id: "two", field_key: "component", predicted_value: "5 GS",
+        current_value: "5 GS", confidence: .82, confidence_source: "derived_heuristic",
+        status: "extracted", review_required: true, reviewed: false,
+        review_reason: "Low heuristic score" },
+    ],
+  };
+  render(<MantineProvider><QueryClientProvider client={new QueryClient()}>
+    <SampleInspector sample={sample} onSaved={vi.fn()} />
+  </QueryClientProvider></MantineProvider>);
+  expect(screen.getByText("OCR score 67%")).toBeInTheDocument();
+  expect(screen.getByText("Heuristic score 82%")).toBeInTheDocument();
+});

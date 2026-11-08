@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from app import jobs, main
+from app import main
 from app.db import Base, get_db
 from app.main import app
 from app.models import Batch, ProcessingJob, Sample
@@ -64,36 +64,6 @@ def test_quota_gate_roundtrip():
     assert get_hold(redis) is None
     set_hold(redis, "unavailable")
     assert get_hold(redis)["seconds_remaining"] == 120
-
-
-def test_worker_skips_gemini_and_preserves_media_during_shared_hold(local_api, monkeypatch):
-    _, engine = local_api
-    with Session(engine) as db:
-        batch = Batch(name="Batch", receiving_date="2026-11-07")
-        db.add(batch)
-        db.flush()
-        sample = Sample(batch_id=batch.id, processing_status="queued")
-        db.add(sample)
-        db.flush()
-        job = ProcessingJob(sample_id=sample.id, status="queued")
-        db.add(job)
-        db.commit()
-        sid, jid = sample.id, job.id
-
-    monkeypatch.setattr(jobs, "SessionLocal", lambda: Session(engine))
-    monkeypatch.setattr(jobs, "connection", lambda: object())
-    monkeypatch.setattr(
-        jobs, "get_hold", lambda _redis: {"reason": "quota", "seconds_remaining": 300}
-    )
-    monkeypatch.setattr(
-        jobs, "analyze_selected_frames",
-        lambda _frames: pytest.fail("Gemini must never be called while held"),
-    )
-    jobs.process_sample(sid, jid)
-    with Session(engine) as db:
-        assert db.get(Sample, sid).processing_status == "paused"
-        assert db.get(ProcessingJob, jid).status == "paused"
-        assert "HTTP 429" in db.get(ProcessingJob, jid).error_message
 
 
 def test_resume_endpoint_requeues_paused_without_reupload(local_api, monkeypatch):

@@ -38,6 +38,11 @@ function EditableField({ sample, field, label, onSaved, warning }: {
     <Group align="flex-start" justify="space-between" wrap="nowrap" gap="xs">
       <Box style={{ minWidth: 0 }}>
         <Text size="xs" fw={700} c="dimmed">{label}</Text>
+        {!editing && field.confidence != null && <Badge mt={4} size="xs"
+          color={field.confidence < 0.90 ? "red" : field.confidence < 0.93 ? "yellow" : "green"}
+          variant="light" title="OCR recognition score, not verified accuracy">
+          {field.confidence_source === "derived_heuristic" ? "Heuristic" : "OCR"} score {Math.round(field.confidence * 100)}%
+        </Badge>}
         {!editing && <Text size="sm" mt={4} style={{ overflowWrap: "anywhere" }}>
           {field.current_value || <Text span c="dimmed" fs="italic">Blank</Text>}
         </Text>}
@@ -50,6 +55,10 @@ function EditableField({ sample, field, label, onSaved, warning }: {
     </Text>}
     {editing ? <Stack gap="xs" mt="sm">
       <Text size="xs" c="dimmed">Original AI reading: {field.predicted_value || "Blank"}</Text>
+      {field.confidence != null && <Text size="xs" c="dimmed">
+        Original {field.confidence_source === "derived_heuristic" ? "heuristic" : "OCR recognition"} score:
+        {" "}{Math.round(field.confidence * 100)}% (not an accuracy guarantee)
+      </Text>}
       {field.review_reason && <Text size="xs" c="dimmed">Review note: {field.review_reason}</Text>}
       <TextInput label={label} autoFocus value={value} onChange={(event) => setValue(event.currentTarget.value)}
         description="Leave blank if this field is absent or does not apply." />

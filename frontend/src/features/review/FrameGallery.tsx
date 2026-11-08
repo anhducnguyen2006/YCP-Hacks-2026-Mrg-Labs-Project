@@ -20,6 +20,11 @@ export function FrameGallery({ frames }: FrameGalleryProps) {
   const sorted = [...frames]
     .filter((frame) => frame.media_type === "keyframe")
     .sort((a, b) => {
+      const aRank = a.metadata_json.frame_rank;
+      const bRank = b.metadata_json.frame_rank;
+      if (typeof aRank === "number" && typeof bRank === "number") {
+        return aRank - bRank || a.id.localeCompare(b.id);
+      }
       const aTime = a.metadata_json.timestamp_seconds;
       const bTime = b.metadata_json.timestamp_seconds;
       if (typeof aTime === "number" && typeof bTime === "number") {

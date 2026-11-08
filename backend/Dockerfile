@@ -13,8 +13,14 @@ WORKDIR /app
 # Copy dependency definition
 COPY pyproject.toml .
 
-# Install dependencies
-RUN pip install --no-cache-dir ".[dev]"
+# CPU is portable, including Docker Desktop on macOS.
+# NVIDIA-only hosts can opt in with the GPU compose override.
+ARG OCR_ENGINE=cpu
+RUN pip install --no-cache-dir ".[dev]" && \
+    if [ "$OCR_ENGINE" = "gpu" ]; then \
+      pip uninstall -y paddlepaddle && \
+      pip install --no-cache-dir paddlepaddle-gpu; \
+    fi
 
 # Copy application source
 COPY alembic.ini .

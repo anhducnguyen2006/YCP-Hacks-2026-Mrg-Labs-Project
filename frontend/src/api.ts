@@ -26,7 +26,8 @@ export type ExportPreviewRow = { id: string; label: string; verified: boolean };
 
 export type QualityFlag = {
   field_key: string;
-  code: "missing" | "unreadable" | "invalid_date" | "year_outlier";
+  code: "missing" | "unreadable" | "invalid_date" | "year_outlier" |
+    "missing_required" | "low_ocr_score" | "unknown_ocr_score";
   message: string;
 };
 export type QualityReport = {
