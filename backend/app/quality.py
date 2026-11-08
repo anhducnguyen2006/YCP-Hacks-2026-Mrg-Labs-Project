@@ -14,6 +14,8 @@ from app.models import Sample, SampleField
 
 APPLICABLE = ("sample_id", "date_sampled", "machine", "component",
               "serial_number", "reference_lube")
+REQUIRED = {"sample_id", "date_sampled", "machine", "component"}
+OCR_SCORE_THRESHOLD = 0.90
 
 
 def batch_quality(db: Session, batch_id: str) -> dict:
@@ -67,9 +69,12 @@ def batch_quality(db: Session, batch_id: str) -> dict:
                 alerts.append({"field_key": key, "code": "unreadable",
                                "message": "AI could not read this field. Inspect the original label."})
             elif not value:
-                # Blank is NOT evidence of unreadable writing: labels can leave
-                # optional fields empty intentionally. Explicit unreadable_fields
-                # from Gemini retains the red warning above.
+                # Empty optional fields are normal; do not claim to see handwriting.
+                if key in REQUIRED and not field.reviewed:
+                    alerts.append({
+                        "field_key": key, "code": "missing_required",
+                        "message": "No value extracted for a required field; inspect the label.",
+                    })
                 continue
             elif key == "date_sampled":
                 try:
@@ -82,6 +87,28 @@ def batch_quality(db: Session, batch_id: str) -> dict:
                     alerts.append({"field_key": key, "code": "year_outlier",
                                    "message": (f"Year {year} differs from batch consensus "
                                                f"{consensus}. Check the handwritten year.")})
+            if (
+                not field.reviewed
+                and field.confidence_source in {"paddleocr_cpu", "paddleocr_gpu"}
+                and field.confidence is not None
+                and field.confidence < OCR_SCORE_THRESHOLD
+
+            ):
+                alerts.append({
+                    "field_key": key, "code": "low_ocr_score",
+                    "message": (f"OCR recognition score {field.confidence:.0%}; "
+                                "check against the original label."),
+                })
+            elif (
+                not field.reviewed
+                and field.confidence_source in {"paddleocr_cpu", "paddleocr_gpu"}
+                and field.confidence is None
+                and field.current_value
+            ):
+                alerts.append({
+                    "field_key": key, "code": "unknown_ocr_score",
+                    "message": "OCR recognition score unavailable; verify this field.",
+                })
         if alerts:
             results[sample.id] = alerts
     return {"consensus_year": consensus, "scanned": len(samples), "flags": results}
