@@ -231,12 +231,12 @@ export function SamplesPage() {
               return <Table.Td key={key}
                 className={warning && sample.review_status !== "verified" ? "quality-cell-warning" : undefined}
                 title={warning?.message ?? (field?.confidence != null
-                  ? `OCR recognition score: ${Math.round(field.confidence * 100)}% (not calibrated accuracy)`
+                  ? `${field.confidence_source === "derived_heuristic" ? "Heuristic" : "OCR recognition"} score: ${Math.round(field.confidence * 100)}% (not calibrated accuracy)`
                   : undefined)}>
                 {field?.current_value ?? ""}
                 {field?.confidence != null && <Text size="xs"
                   c={field.confidence < 0.90 ? "red" : "dimmed"}>
-                  OCR {Math.round(field.confidence * 100)}%
+                  {field.confidence_source === "derived_heuristic" ? "Heuristic" : "OCR"} {Math.round(field.confidence * 100)}%
                 </Text>}
                 {warning && sample.review_status !== "verified" && <Text size="xs" c="red" fw={700}>Check</Text>}
               </Table.Td>;
