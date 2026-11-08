@@ -1,40 +1,45 @@
-"""Long-lived RQ task: decode -> local GPU PaddleOCR -> persist."""
+"""Long-lived RQ task: decode -> local PaddleOCR -> preserve structured data."""
 import os
-from datetime import datetime, timezone
+import re
+from datetime import UTC, datetime
 from pathlib import Path
 
-import numpy as np
 from sqlalchemy import select
 
 from app.config import get_settings
 from app.db import SessionLocal
 from app.local_tube_ocr import process_tube_video
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia
+from app.ocr_contract import assess_fields, clean_value, confidence_score, sampled_date
 from app.schemas import FIELD_KEYS
 
 
 def _time() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-def _stage(job_id: str, sample_id: str, name: str) -> None:
+def _stage(job_id: str, sample_id: str, name: str) -> bool:
     with SessionLocal() as db:
         job = db.get(ProcessingJob, job_id)
         sample = db.get(Sample, sample_id)
         if not job or not sample:
             raise ValueError("Processing job or sample no longer exists.")
+        if job.status == "canceled" or sample.processing_status == "canceled":
+            return False
         job.status = "processing"
         job.current_stage = name
         sample.processing_status = "processing"
         sample.updated_at = _time()
         db.commit()
+    return True
 
 
 def process_sample(sample_id: str, job_id: str) -> None:
     settings = get_settings()
     root = Path(settings.media_root).resolve()
     try:
-        _stage(job_id, sample_id, "inspecting_video")
+        if not _stage(job_id, sample_id, "inspecting_video"):
+            return
         with SessionLocal() as db:
             video = db.scalars(
                 select(SampleMedia).where(
@@ -47,20 +52,19 @@ def process_sample(sample_id: str, job_id: str) -> None:
             if not video_path.is_relative_to(root):
                 raise ValueError("Invalid stored video path.")
 
-        # Dedicated output folder for keyframes under media_root/<sample_id>/keyframes
-        output_frames_rel = Path(sample_id) / "keyframes"
+        # Attempt-specific output avoids stale images surviving retries.
+        output_frames_rel = Path(sample_id) / job_id / "keyframes"
         output_frames_abs = root / output_frames_rel
         output_frames_abs.mkdir(parents=True, exist_ok=True)
 
-        _stage(job_id, sample_id, "running_gpu_ocr")
-        # Run local GPU-accelerated pipeline
+        if not _stage(job_id, sample_id, "running_ocr"):
+            return
+        # Run local OCR on CPU by default; NVIDIA GPU is opt-in.
         result = process_tube_video(str(video_path), output_dir=str(output_frames_abs))
 
         tube_type_raw = result.get("tube_type", "Small")
         tube_type = "small" if tube_type_raw.lower() == "small" else "large"
         table_row = result.get("table_row", {})
-        timing = result.get("timing", {})
-
         # Clear any prior keyframe media records for retried runs
         with SessionLocal() as db:
             old_frames = db.scalars(
@@ -73,7 +77,13 @@ def process_sample(sample_id: str, job_id: str) -> None:
 
             # Register extracted keyframe and annotated images into SampleMedia
             for file_path in sorted(output_frames_abs.glob("frame_*.jpg")):
-                is_annotated = "_annotated" in file_path.name
+                # Exactly the eight selected original frames; annotated overlays
+                # are diagnostics and should not double the user-visible gallery.
+                if "_annotated" in file_path.name:
+                    continue
+                match = re.fullmatch(r"frame_(\d+)_id(\d+)\.jpg", file_path.name)
+                if match is None:
+                    continue
                 rel_path = output_frames_rel / file_path.name
                 db.add(
                     SampleMedia(
@@ -83,13 +93,16 @@ def process_sample(sample_id: str, job_id: str) -> None:
                         relative_path=str(rel_path),
                         metadata_json={
                             "filename": file_path.name,
-                            "annotated": is_annotated,
+                            "annotated": False,
+                            "frame_rank": int(match.group(1)),
+                            "frame_index": int(match.group(2)),
                         },
                     )
                 )
             db.commit()
 
-        _stage(job_id, sample_id, "saving_results")
+        if not _stage(job_id, sample_id, "saving_results"):
+            return
 
         # Map local OCR table_row keys to standard backend FIELD_KEYS
         field_mapping = {
@@ -102,28 +115,20 @@ def process_sample(sample_id: str, job_id: str) -> None:
             "reference_lube": table_row.get("Reference Lube", {}),
         }
 
-        # Calculate overall visual confidence for the sample
-        conf_scores = [
-            info.get("confidence", 0.0)
-            for k, info in field_mapping.items()
-            if k != "date_received"
-            and info.get("value") not in (None, "N/A", "[Leave Blank]")
-        ]
-        avg_conf = float(np.mean(conf_scores)) if conf_scores else 0.0
-
-        if avg_conf >= 0.93:
-            overall_confidence = "high"
-            conf_reason = f"High GPU OCR confidence across keyframes (avg: {avg_conf:.1%})"
-        elif avg_conf >= 0.78:
-            overall_confidence = "medium"
-            conf_reason = f"Moderate OCR confidence; check handwritten elements (avg: {avg_conf:.1%})"
-        else:
+        # Normalize OCR-only dates before quality checks and CSV export.
+        raw_date = field_mapping["date_sampled"].get("value")
+        date_value, date_valid = sampled_date(raw_date)
+        field_mapping["date_sampled"] = {
+            **field_mapping["date_sampled"],
+            "value": date_value,
+            "date_valid": date_valid,
+        }
+        overall_confidence, conf_reason = assess_fields(field_mapping, tube_type)
+        if date_value is not None and not date_valid:
             overall_confidence = "low"
-            conf_reason = f"Low clarity or missing label fields (avg: {avg_conf:.1%})"
+            conf_reason = "Incomplete or invalid sampled date; check the original label."
 
-        sample_id_extracted = field_mapping["sample_id"].get("value")
-        if sample_id_extracted in ("N/A", ""):
-            sample_id_extracted = None
+        sample_id_extracted = clean_value(field_mapping["sample_id"].get("value"))
 
         with SessionLocal() as db:
             sample = db.get(Sample, sample_id)
@@ -153,36 +158,42 @@ def process_sample(sample_id: str, job_id: str) -> None:
                 )
 
                 field_data = field_mapping.get(key, {})
-                raw_val = field_data.get("value")
-                field_conf = field_data.get("confidence", 0.0)
-
+                value = clean_value(field_data.get("value"))
+                score = confidence_score(field_data.get("confidence"))
                 if key == "date_received":
-                    # Date Received is strictly driven by the Batch entity
                     value = batch.receiving_date
-                    field_conf = 1.0
-                elif forced_empty or raw_val in ("N/A", "[Leave Blank]", ""):
+                    score = None  # Batch metadata, not an OCR reading.
+                elif forced_empty:
                     value = None
-                else:
-                    value = raw_val
+                    score = None
 
+                invalid_date = (key == "date_sampled" and value is not None
+                                and not field_data.get("date_valid", False))
                 status = (
                     "not_applicable" if forced_empty else
-                    "extracted" if value not in (None, "") else "missing"
+                    "invalid_date" if invalid_date else
+                    "extracted" if value is not None else "missing"
                 )
-
-                # Review required if missing, low confidence, or critical identifier
+                required = key in {"sample_id", "date_sampled", "machine", "component"}
+                low_score = value is not None and score is not None and score < 0.90
+                unknown_score = value is not None and score is None and key != "date_received"
+                # A blank optional serial number / lube box is not evidence of
+                # unreadable text. Missing required values do need a check.
                 review_required = (
-                    not forced_empty
-                    and key != "date_received"
-                    and (value is None or field_conf < 0.90)
+                    not forced_empty and key != "date_received"
+                    and (invalid_date or (required and value is None)
+                         or low_score or unknown_score)
                 )
-                review_reason = (
-                    f"OCR confidence ({field_conf:.2f}) requires human verification"
-                    if review_required and value is not None
-                    else "Missing field on label"
-                    if review_required
-                    else None
-                )
+                if invalid_date:
+                    review_reason = "Invalid/incomplete OCR date; inspect original label."
+                elif required and value is None:
+                    review_reason = "No value extracted for a required field; check source label."
+                elif low_score:
+                    review_reason = f"Low OCR recognition score ({score:.2f}); confirm source text."
+                elif unknown_score:
+                    review_reason = "OCR confidence unavailable; confirm source text."
+                else:
+                    review_reason = None
 
                 field = existing.get(key)
                 if field is None:
@@ -195,8 +206,11 @@ def process_sample(sample_id: str, job_id: str) -> None:
                     field.review_required = review_required
                     field.review_reason = review_reason
 
-                field.confidence = round(float(field_conf), 3) if value else None
-                field.confidence_source = "paddleocr_gpu"
+                field.confidence = round(score, 3) if score is not None and value else None
+                field.confidence_source = (
+                    "paddleocr_gpu" if os.getenv("OCR_DEVICE", "cpu").startswith("gpu")
+                    else "paddleocr_cpu"
+                ) if key != "date_received" and value else None
                 field.status = status
 
             sample.processing_status = "completed"
