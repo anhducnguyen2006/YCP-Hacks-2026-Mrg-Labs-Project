@@ -8,6 +8,8 @@ import { TemplatesPage } from "./features/templates/TemplatesPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { WorkspaceSettingsProvider } from "./features/settings/WorkspaceSettings";
 import { ThemeSwitch } from "./components/ThemeSwitch";
+import { OiledHelper } from "./components/OiledHelper/OiledHelper";
+import { useUiAudioActivation } from "./components/uiSounds";
 
 const navigation = [
   { label: "Scan", icon: ScanLine, to: "/scan" },
@@ -23,6 +25,7 @@ function LegacyReviewRedirect() {
 }
 
 function Layout() {
+  useUiAudioActivation();
   const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] = useDisclosure(false);
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
   const [helpOpened, help] = useDisclosure(false);
@@ -41,13 +44,16 @@ function Layout() {
                 <img src="/mrg-laboratories.png" alt="" className="brand-logo brand-logo-light" />
                 <img src="/mrg-laboratories-dark-clean.svg" alt="" className="brand-logo brand-logo-dark" />
               </span>
-              <Text className="brand-app-name" fw={700}>GreaseFreeData</Text>
+              <Box className="brand-app-name">
+                <Text fw={700} size="md" lh={1.25}>Grease Free Data</Text>
+                <Text size="xs" c="dimmed" mt={3} lh={1.25}>Digitalize your labels with ease.</Text>
+              </Box>
             </UnstyledButton>
           </Group>
           <Group gap="sm">
             <ThemeSwitch />
-            <Button variant="subtle" color="gray" size="sm" leftSection={<HelpCircle size={18} />}
-              onClick={help.open} aria-label="How to use Sample Scanner">Help</Button>
+            <Button className="glass-secondary-control" variant="subtle" color="gray" size="sm" leftSection={<HelpCircle size={18} />}
+              onClick={help.open} aria-label="How to use Grease Free Data">Help</Button>
             <Badge color="green" variant="light" leftSection={<span className="status-dot" />}>Local workspace</Badge>
           </Group>
         </Group>
@@ -61,13 +67,14 @@ function Layout() {
         </Stack>
         <Box mt="auto" className="nav-footer">
           <Text size="xs" fw={700} className="brand-caption">MRG LABORATORIES</Text>
-          <Text size="xs" c="dimmed" mt={4}>Sample digitization workspace</Text>
+          <Text size="xs" c="dimmed" mt={4}>greasefreedata.us</Text>
         </Box>
       </AppShell.Navbar>
       <AppShell.Main><Outlet /></AppShell.Main>
-      <Modal opened={helpOpened} onClose={help.close} title="How to use Sample Scanner" centered size="lg">
+      <OiledHelper />
+      <Modal opened={helpOpened} onClose={help.close} title="How to use Grease Free Data" centered size="lg">
         <Stack gap="md">
-          <Text size="sm"><strong>1. Scan:</strong> Choose or create a batch, then upload rotation videos or record one with your desktop camera. Choose Upload & analyze.</Text>
+          <Text size="sm"><strong>1. Scan:</strong> Choose or create a batch, then upload rotation videos from your computer. Choose Upload & analyze.</Text>
           <Text size="sm"><strong>2. Samples:</strong> Search, sort, and filter samples by confidence.
             Click a row to compare the original video and extracted frames, edit values, and verify readings.</Text>
           <Text size="sm"><strong>3. Export:</strong> Select a batch and download its completed records

@@ -1,0 +1,431 @@
+/* Oiled Helper — Laboratory Mascot & Assistant Styles */
+
+/* Animate paint properties, leaving the walking/fluid transforms independent. */
+.oiled-helper-root {
+  --oiled-oil-1: #34d399;
+  --oiled-oil-2: #25633e;
+  --oiled-oil-3: #ca8a04;
+  --oiled-oil-4: #122e50;
+  --oiled-glass-fill: rgba(37, 99, 62, .04);
+  --oiled-glass-edge: #122e50;
+  --oiled-limb: #101820;
+  --oiled-shoe: #25633e;
+  --oiled-sole: #f1f5f3;
+  --oiled-glove: #ffffff;
+  --oiled-outline: #101820;
+  --oiled-cheek: #ff7b89;
+}
+:root[data-mantine-color-scheme="dark"] .oiled-helper-root {
+  --oiled-oil-1: #b6f4df;
+  --oiled-oil-2: #8ce8cf;
+  --oiled-oil-3: #65c18c;
+  --oiled-oil-4: #238477;
+  --oiled-glass-fill: rgba(23, 46, 57, .18);
+  --oiled-glass-edge: #bfe9dd;
+  --oiled-limb: #bfe9dd;
+  --oiled-shoe: #28594f;
+  --oiled-sole: #bfe9dd;
+  --oiled-glove: #e1f5eb;
+  --oiled-outline: #122e50;
+  --oiled-cheek: #f7b9a4;
+}
+
+.oiled-helper-root {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 220px;
+  pointer-events: none;
+  z-index: 999;
+  overflow: visible;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
+}
+
+/* Floor runner guide line */
+.oiled-helper-baseline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(101, 193, 140, 0.4) 20%, rgba(101, 193, 140, 0.4) 80%, transparent);
+  pointer-events: none;
+}
+
+/* Actor Container */
+.oiled-actor {
+  position: absolute;
+  bottom: 12px;
+  width: 140px;
+  height: 180px;
+  pointer-events: auto;
+  cursor: grab;
+  transform-origin: 50% 90%;
+  will-change: transform, left;
+}
+
+.oiled-actor:active {
+  cursor: grabbing;
+}
+
+/* Character Rig Wrapper (flips horizontally without affecting the speech bubble) */
+.oiled-character-rig {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 90%;
+  will-change: transform;
+  transition: transform 0.18s ease-out;
+}
+
+/* Floor Contact Shadow */
+.oiled-actor-shadow {
+  position: absolute;
+  bottom: 6px;
+  width: 90px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.45) 0%, rgba(0,0,0,0) 70%);
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: transform 0.1s ease;
+}
+
+/* LIQUID GLASS 3-WORD POPUP */
+.oiled-speech-bubble {
+  position: absolute;
+  bottom: calc(100% + 16px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.88);
+  /* Liquid Glass Frosted Aesthetic */
+  background: rgba(255, 255, 255, 0.22);
+  color: #101820;
+  padding: 8px 18px;
+  border-radius: 28px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  width: max-content;
+  max-width: 240px;
+  min-width: 80px;
+  text-align: center;
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 2px rgba(255, 255, 255, 0.75),
+    inset 0 -1px 2px rgba(101, 193, 140, 0.3);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  line-height: 1.35;
+  z-index: 20;
+}
+
+[data-mantine-color-scheme="dark"] .oiled-speech-bubble {
+  background: rgba(22, 34, 42, 0.55);
+  color: #F1F5F3;
+  border: 1.5px solid rgba(101, 193, 140, 0.5);
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.6),
+    inset 0 1px 2px rgba(255, 255, 255, 0.35),
+    inset 0 -1px 2px rgba(101, 193, 140, 0.25);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.oiled-speech-bubble.active {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.oiled-speech-text {
+  display: inline-block;
+  animation: oiled-word-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+@keyframes oiled-word-in {
+  from {
+    opacity: 0.55;
+    transform: translateY(3px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.oiled-speech-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.6) transparent transparent transparent;
+}
+
+[data-mantine-color-scheme="dark"] .oiled-speech-bubble::after {
+  border-color: rgba(101, 193, 140, 0.5) transparent transparent transparent;
+}
+
+/* SVG Character */
+.oiled-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.3));
+}
+
+.oiled-glass-shell {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+[data-mantine-color-scheme="light"] .oiled-glass-shell {
+  fill: rgba(37, 99, 62, 0.04);
+  stroke: #122E50;
+}
+
+.oiled-fluid {
+  fill: url(#oil-fluid-grad);
+  transition: fill 0.35s ease;
+  will-change: d;
+}
+
+.oiled-fluid-shimmer {
+  pointer-events: none;
+  opacity: 0.85;
+  filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.4));
+  will-change: d;
+}
+
+.oiled-droplets-layer {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+  pointer-events: none;
+}
+
+/* Limbs */
+.oiled-limb-leg {
+  stroke: #101820;
+  stroke-width: 5;
+  stroke-linecap: round;
+  fill: none;
+}
+
+[data-mantine-color-scheme="dark"] .oiled-limb-leg {
+  stroke: #E2E8F0;
+}
+
+.oiled-shoe {
+  fill: #25633E;
+  stroke: #101820;
+  stroke-width: 2.5;
+}
+
+.oiled-shoe-sole {
+  fill: #F1F5F3;
+  stroke: #101820;
+  stroke-width: 1.5;
+}
+
+.oiled-limb-arm {
+  stroke: #101820;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  fill: none;
+}
+
+[data-mantine-color-scheme="dark"] .oiled-limb-arm {
+  stroke: #E2E8F0;
+}
+
+.oiled-glove {
+  fill: #FFFFFF;
+  stroke: #101820;
+  stroke-width: 2.2;
+}
+
+/* Face elements */
+.oiled-eye-sclera {
+  fill: #FFFFFF;
+  stroke: #101820;
+  stroke-width: 2.2;
+}
+
+.oiled-pupil {
+  fill: #101820;
+  transition: transform 0.06s ease;
+}
+
+.oiled-eyebrow {
+  stroke: #101820;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  fill: none;
+  transition: d 0.16s ease;
+}
+
+[data-mantine-color-scheme="dark"] .oiled-eyebrow {
+  stroke: #101820;
+}
+
+.oiled-mouth {
+  stroke: #101820;
+  stroke-width: 3;
+  stroke-linecap: round;
+  fill: #101820;
+  transition: d 0.1s ease;
+}
+
+.oiled-cheeks {
+  fill: #FF7B89;
+  opacity: 0.6;
+}
+
+/* SVG presentation attributes yield to these theme-aware paint values. */
+.oiled-helper-root #oil-fluid-grad stop:nth-child(1) { stop-color: var(--oiled-oil-1); }
+.oiled-helper-root #oil-fluid-grad stop:nth-child(2) { stop-color: var(--oiled-oil-2); }
+.oiled-helper-root #oil-fluid-grad stop:nth-child(3) { stop-color: var(--oiled-oil-3); }
+.oiled-helper-root #oil-fluid-grad stop:nth-child(4) { stop-color: var(--oiled-oil-4); }
+.oiled-helper-root .oiled-svg stop { transition: stop-color 650ms ease-in-out; }
+.oiled-helper-root .oiled-glass-shell {
+  fill: var(--oiled-glass-fill); stroke: var(--oiled-glass-edge);
+}
+.oiled-helper-root .oiled-limb-leg, .oiled-helper-root .oiled-limb-arm { stroke: var(--oiled-limb); }
+.oiled-helper-root .oiled-shoe { fill: var(--oiled-shoe); stroke: var(--oiled-outline); }
+.oiled-helper-root .oiled-shoe-sole { fill: var(--oiled-sole); stroke: var(--oiled-outline); }
+.oiled-helper-root .oiled-glove { fill: var(--oiled-glove); stroke: var(--oiled-outline); }
+.oiled-helper-root .oiled-cheeks { fill: var(--oiled-cheek); }
+.oiled-helper-root :is(.oiled-glass-shell, .oiled-limb-leg, .oiled-limb-arm, .oiled-shoe, .oiled-shoe-sole, .oiled-glove, .oiled-cheeks) {
+  transition: fill 650ms ease-in-out, stroke 650ms ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .oiled-helper-root .oiled-svg stop,
+  .oiled-helper-root :is(.oiled-glass-shell, .oiled-limb-leg, .oiled-limb-arm, .oiled-shoe, .oiled-shoe-sole, .oiled-glove, .oiled-cheeks) {
+    transition-duration: 1ms;
+  }
+}
+
+/* Minimal Clean Dock (Only Mic and Voice) */
+.oiled-dock {
+  position: fixed;
+  bottom: 14px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(22, 34, 42, 0.82);
+  border: 1px solid rgba(101, 193, 140, 0.3);
+  backdrop-filter: blur(16px);
+  padding: 6px 10px;
+  border-radius: 28px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  z-index: 1000;
+  transition: all 0.25s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+[data-mantine-color-scheme="light"] .oiled-dock {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(37, 99, 62, 0.25);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.oiled-dock-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #F1F5F3;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.18s ease;
+}
+
+[data-mantine-color-scheme="light"] .oiled-dock-btn {
+  background: rgba(18, 46, 80, 0.05);
+  border: 1px solid rgba(18, 46, 80, 0.15);
+  color: #122E50;
+}
+
+.oiled-dock-btn:hover {
+  background: rgba(101, 193, 140, 0.2);
+  border-color: #65C18C;
+  color: #65C18C;
+  transform: translateY(-1px);
+}
+
+/* Mic Active Badge / Pulse */
+.oiled-dock-btn.mic-on {
+  background: rgba(101, 193, 140, 0.22);
+  border-color: #65C18C;
+  color: #65C18C;
+}
+
+.oiled-dock-btn.mic-listening {
+  background: #25633E;
+  border-color: #65C18C;
+  color: #FFFFFF;
+  animation: micListenPulse 1.2s infinite alternate;
+}
+
+@keyframes micListenPulse {
+  0% { box-shadow: 0 0 4px #65C18C; }
+  100% { box-shadow: 0 0 16px #65C18C; }
+}
+
+.oiled-dock-btn.mic-off {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #FCA5A5;
+}
+
+/* Voice Muted Button */
+.oiled-dock-btn.voice-muted {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #FCA5A5;
+}
+
+.oiled-dock-btn.voice-on {
+  background: rgba(101, 193, 140, 0.22);
+  border-color: #65C18C;
+  color: #65C18C;
+}
+
+/* Animations: Wobble and Stumble */
+@keyframes oiledPokeSquash {
+  0% { transform: scale(1, 1); }
+  25% { transform: scale(1.22, 0.78) rotate(-7deg); }
+  50% { transform: scale(0.85, 1.18) rotate(5deg); }
+  75% { transform: scale(1.06, 0.95) rotate(-2deg); }
+  100% { transform: scale(1, 1) rotate(0deg); }
+}
+
+.oiled-actor.poking {
+  animation: oiledPokeSquash 0.45s ease-out !important;
+}
+
+@keyframes oiledTripStumble {
+  0% { transform: scale(1, 1) rotate(0deg); }
+  25% { transform: scale(1.15, 0.85) rotate(-20deg) translateY(-16px); }
+  50% { transform: scale(0.9, 1.1) rotate(16deg) translateY(-26px); }
+  75% { transform: scale(1.18, 0.8) rotate(-6deg) translateY(0); }
+  100% { transform: scale(1, 1) rotate(0deg); }
+}
+
+.oiled-actor.stumbling {
+  animation: oiledTripStumble 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}

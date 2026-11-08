@@ -3,6 +3,7 @@ import "./styles.css";
 import "./dark-mode.css";
 import "./theme-transition.css";
 import "./palette.css";
+import "./glass-controls.css";
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";

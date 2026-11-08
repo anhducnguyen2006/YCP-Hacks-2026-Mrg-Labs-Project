@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { Alert, Badge, Box, Button, Checkbox, Group, Loader, Modal, Paper, Select, Stack, Table, Text, TextInput, ThemeIcon, Title } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, FlaskConical, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
@@ -7,6 +7,7 @@ import { api, type QualityFlag } from "../../api";
 import { sampleColumns } from "./columns";
 import { ConfidenceExplanation, SampleConfidence } from "./SampleConfidence";
 import { SampleInspector } from "./SampleInspector";
+import { useActiveBatch } from "./useActiveBatch";
 
 const SORT_OPTIONS = [
   { value: "created_at", label: "Date added" },
@@ -24,7 +25,6 @@ export function SamplesPage() {
   const client = useQueryClient();
   const [params, setParams] = useSearchParams();
   // URL params are the single source of truth: closing cannot be undone by an effect.
-  const batchId = params.get("batch");
   const inspectedId = params.get("sample");
   const [inspected, setInspected] = useState<import("../../api").Sample | null>(null);
   const [editNotice, setEditNotice] = useState<string | null>(null);
@@ -40,7 +40,15 @@ export function SamplesPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
 
-  const batches = useQuery({ queryKey: ["batches"], queryFn: api.batches, retry: false });
+  const batches = useQuery({ queryKey: ["batches"], queryFn: api.batches, retry: false, refetchInterval: 10000 });
+  const batchId = useActiveBatch(params.get("batch"), batches.data, true);
+  useEffect(() => {
+    if (batchId && !params.get("batch")) setParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set("batch", batchId);
+      return next;
+    }, {replace: true});
+  }, [batchId, params, setParams]);
   const inventory = useQuery({
     queryKey: ["inventory", batchId, deferredSearch, status, confidence, sortBy, direction, offset, flaggedOnly],
     queryFn: () => api.inventory(batchId!, {
@@ -54,6 +62,8 @@ export function SamplesPage() {
     }),
     enabled: Boolean(batchId),
     retry: false,
+    refetchOnMount: "always",
+    refetchInterval: 5000,
   });
   const quality = useQuery({
     queryKey: ["quality", batchId],
@@ -66,6 +76,7 @@ export function SamplesPage() {
     queryFn: () => api.sample(inspectedId!),
     enabled: Boolean(inspectedId),
     retry: false,
+    refetchInterval: query => query.state.data && ["queued", "processing", "paused"].includes(query.state.data.processing_status) ? 5000 : false,
   });
   const currentDetail = inspected?.id === inspectedId ? inspected : detail.data;
   const openInspector = (sampleId: string) => {
@@ -89,6 +100,10 @@ export function SamplesPage() {
       : "Change saved. Verify the complete sample after checking its original label.");
   };
   const rows = inventory.data?.items ?? [];
+  const inventoryVersion = JSON.stringify(inventory.data?.items.map(sample => [sample.id, sample.processing_status, sample.review_status, sample.fields.map(field => [field.field_key, field.current_value])]));
+  useEffect(() => {
+    if (batchId && inventoryVersion !== undefined) void client.invalidateQueries({queryKey: ["quality", batchId]});
+  }, [batchId, inventoryVersion, client]);
   const total = inventory.data?.total ?? 0;
   const flagged = quality.data?.flags ?? {};
   const visibleRows = rows;
