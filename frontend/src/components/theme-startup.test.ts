@@ -3,7 +3,14 @@ import { runInNewContext } from "node:vm";
 import { expect, test } from "vitest";
 
 const html = readFileSync("index.html", "utf8");
-const initializer = html.match(/<script>([\s\S]*?)<\/script>/)![1];
+const lowerHtml = html.toLowerCase();
+const scriptStart = lowerHtml.indexOf("<script");
+const scriptOpenEnd = lowerHtml.indexOf(">", scriptStart);
+const scriptCloseStart = lowerHtml.indexOf("</script", scriptOpenEnd);
+if (scriptStart < 0 || scriptOpenEnd < 0 || scriptCloseStart < 0) {
+  throw new Error("Unable to locate inline startup script in index.html");
+}
+const initializer = html.slice(scriptOpenEnd + 1, scriptCloseStart);
 
 test.each([
   [null, true, "dark"],
