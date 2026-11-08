@@ -20,6 +20,8 @@ dependencies = [
   "google-genai>=3.0,<4",
   "numpy>=1.26,<3",
   "opencv-python-headless>=4.10,<5",
+  "paddlepaddle-gpu", 
+  "paddleocr", 
 ]
 
 [project.optional-dependencies]
@@ -31,6 +33,11 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI intentionally uses Depends(...) and File(...) as endpoint defaults.
+# Restrict this exception to the API routes, not the rest of the codebase.
+"app/main.py" = ["B008"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

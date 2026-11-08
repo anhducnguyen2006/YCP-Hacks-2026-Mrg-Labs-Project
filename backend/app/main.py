@@ -1,28 +1,42 @@
 """MRG Sample Scanner HTTP API backed by PostgreSQL and RQ."""
 import csv
-import logging
-from shutil import rmtree
 import io
+import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from shutil import rmtree
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from redis import Redis
 from rq import Queue
-from sqlalchemy import select, func, or_, exists, case
+from rq.exceptions import NoSuchJobError
+from rq.job import Job
+from sqlalchemy import case, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
 from app.models import Batch, ProcessingJob, Sample, SampleField, SampleMedia, uid
+from app.quality import batch_quality
+from app.quota_gate import clear_hold, connection, get_hold
 from app.schemas import (
-    FIELD_KEYS, BatchCreate, BatchOut, BatchStatusOut, BatchSampleStatusOut, FieldCorrection, SampleOut, InventoryOut, SampleDeleteRequest,
+    FIELD_KEYS,
+    BatchCreate,
+    BatchOut,
+    BatchSampleStatusOut,
+    BatchStatusOut,
+    FieldCorrection,
+    InventoryOut,
+    SampleDeleteRequest,
+    SampleOut,
+    SelectiveExportRequest,
 )
 from app.store import batch_out, sample_out
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 app = FastAPI(title="MRG Sample Scanner API", version="0.2.0")
 app.add_middleware(
@@ -39,7 +53,7 @@ MAX_UPLOAD = 50 * 1024 * 1024
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @app.get("/api/health")
@@ -72,6 +86,14 @@ CSV_HEADERS = (
 )
 
 
+@app.get("/api/batches/{batch_id}/quality")
+def quality_report(batch_id: str, db: Session = Depends(get_db)) -> dict:
+    """Detect suspicious or unreadable fields across the complete batch."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    return batch_quality(db, batch_id)
+
+
 @app.get("/api/batches/{batch_id}/status", response_model=BatchStatusOut)
 def batch_status(batch_id: str, db: Session = Depends(get_db)) -> BatchStatusOut:
     """One lightweight polling request for the whole batch, including per-video status."""
@@ -82,22 +104,20 @@ def batch_status(batch_id: str, db: Session = Depends(get_db)) -> BatchStatusOut
         .where(Sample.batch_id == batch_id)
         .order_by(Sample.created_at, Sample.id)
     ).all()
-    counts = {status: 0 for status in ("queued", "processing", "completed", "failed")}
+    counts = {status: 0 for status in ("queued", "processing", "completed", "failed", "canceled", "paused")}
     for _, status in items:
         counts[status] = counts.get(status, 0) + 1
-    ids = [sample_id for sample_id, _ in items]
-    needs_review = 0
-    if ids:
-        needs_review = len(db.scalars(
-            select(SampleField.sample_id).where(
-                SampleField.sample_id.in_(ids),
-                SampleField.review_required.is_(True),
-                SampleField.reviewed.is_(False),
-            ).distinct()
-        ).all())
+    needs_review = db.scalar(
+        select(func.count()).select_from(Sample).where(
+            Sample.batch_id == batch_id,
+            Sample.processing_status == "completed",
+            Sample.review_status != "verified",
+        )
+    ) or 0
     return BatchStatusOut(
         total=len(items), queued=counts["queued"], processing=counts["processing"],
         completed=counts["completed"], failed=counts["failed"],
+        canceled=counts["canceled"], paused=counts["paused"],
         needs_review=needs_review,
         items=[BatchSampleStatusOut(id=sid, status=status) for sid, status in items],
     )
@@ -128,10 +148,7 @@ def export_batch_csv(
     writer.writerow(CSV_HEADERS)
     for sample in samples:
         fields = fields_by_sample[sample.id]
-        if reviewed_only and any(
-            field.review_required and not field.reviewed
-            for field in fields.values()
-        ):
+        if reviewed_only and sample.review_status != "verified":
             continue
         values = [
             (fields.get(key).current_value if fields.get(key) else None) or ""
@@ -141,6 +158,71 @@ def export_batch_csv(
         values[2] = batch.receiving_date
         writer.writerow(values)
     # Keep filename ASCII-only for a safe HTTP Content-Disposition value.
+    filename = re.sub(r"[^A-Za-z0-9._-]", "_", batch.default_export_filename)
+    if not filename.lower().endswith(".csv"):
+        filename = "mrg-samples.csv"
+    return Response(
+        content=output.getvalue(), media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.get("/api/batches/{batch_id}/export-preview")
+def export_preview(batch_id: str, db: Session = Depends(get_db)) -> list[dict]:
+    """Lightweight preview of all completed records, including later pages."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    samples = db.scalars(select(Sample).where(
+        Sample.batch_id == batch_id,
+        Sample.processing_status == "completed",
+    ).order_by(Sample.created_at, Sample.id)).all()
+    ids = [sample.id for sample in samples]
+    labels: dict[str, str] = {}
+    if ids:
+        for sid, label in db.execute(select(
+            SampleField.sample_id, SampleField.current_value,
+        ).where(
+            SampleField.sample_id.in_(ids), SampleField.field_key == "sample_id",
+        )):
+            labels[sid] = label or ""
+    return [{
+        "id": sample.id,
+        "label": labels.get(sample.id) or sample.external_sample_id or sample.id[:8],
+        "verified": sample.review_status == "verified",
+    } for sample in samples]
+
+
+@app.post("/api/batches/{batch_id}/export-selected.csv")
+def export_selected_csv(
+    batch_id: str, payload: SelectiveExportRequest, db: Session = Depends(get_db)
+) -> Response:
+    """Export exactly the chosen completed records, preserving seven CSV columns."""
+    batch = db.get(Batch, batch_id)
+    if batch is None:
+        raise HTTPException(404, "Batch not found.")
+    ids = list(dict.fromkeys(payload.sample_ids))
+    samples = db.scalars(select(Sample).where(
+        Sample.batch_id == batch_id, Sample.id.in_(ids)
+    )).all()
+    if len(samples) != len(ids):
+        raise HTTPException(422, "Selected samples must all belong to this batch.")
+    if any(sample.processing_status != "completed" for sample in samples):
+        raise HTTPException(422, "Only completed samples may be exported.")
+    if payload.verified_only and any(sample.review_status != "verified" for sample in samples):
+        raise HTTPException(422, "Selection contains unverified samples.")
+    values = {sid: {} for sid in ids}
+    for field in db.scalars(select(SampleField).where(SampleField.sample_id.in_(ids))):
+        values[field.sample_id][field.field_key] = field.current_value or ""
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\r\n")
+    writer.writerow(CSV_HEADERS)
+    for sid in ids:
+        row = [values[sid].get(key, "") for key in FIELD_KEYS]
+        row[2] = batch.receiving_date
+        writer.writerow(row)
     filename = re.sub(r"[^A-Za-z0-9._-]", "_", batch.default_export_filename)
     if not filename.lower().endswith(".csv"):
         filename = "mrg-samples.csv"
@@ -174,7 +256,8 @@ def list_samples(
 def inventory(
     batch_id: str, search: str = "", sort_by: str = "created_at",
     descending: bool = True, status: str = "all", confidence: str = "all",
-    offset: int = 0, limit: int = 50, db: Session = Depends(get_db),
+    offset: int = 0, limit: int = 50, flagged_only: bool = False,
+    db: Session = Depends(get_db),
 ) -> InventoryOut:
     """Search and sort all batch records before applying pagination."""
     if db.get(Batch, batch_id) is None:
@@ -192,6 +275,12 @@ def inventory(
     if confidence not in {"all", "high", "medium", "low", "unrated"}:
         raise HTTPException(422, "Unsupported confidence filter.")
     stmt = select(Sample).where(Sample.batch_id == batch_id)
+    if flagged_only:
+        flagged = batch_quality(db, batch_id)["flags"]
+        stmt = stmt.where(
+            Sample.id.in_(list(flagged.keys())),
+            Sample.review_status != "verified",
+        )
     term = search.strip().lower()
     if term:
         matching_field = exists(select(SampleField.id).where(
@@ -204,11 +293,10 @@ def inventory(
             matching_field,
         ))
     if status == "review":
-        stmt = stmt.where(exists(select(SampleField.id).where(
-            SampleField.sample_id == Sample.id,
-            SampleField.review_required.is_(True),
-            SampleField.reviewed.is_(False),
-        )))
+        stmt = stmt.where(
+            Sample.processing_status == "completed",
+            Sample.review_status != "verified",
+        )
     elif status != "all":
         stmt = stmt.where(Sample.processing_status == status)
     if confidence == "unrated":
@@ -235,6 +323,78 @@ def inventory(
     ).offset(offset).limit(limit)
     return InventoryOut(total=total, items=[sample_out(db, s) for s in db.scalars(stmt)])
 
+
+
+@app.get("/api/analysis-gate")
+def analysis_gate() -> dict:
+    """Current project-wide dispatch hold; never includes API key or label data."""
+    try:
+        return {"hold": get_hold(connection())}
+    except Exception as exc:
+        raise HTTPException(503, "Could not read analysis queue status.") from exc
+
+
+@app.post("/api/batches/{batch_id}/resume-paused")
+def resume_paused(batch_id: str, db: Session = Depends(get_db)) -> dict[str, int]:
+    """Explicitly clear shared hold and requeue this batch's paused video records."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    try:
+        clear_hold(connection())
+    except Exception as exc:
+        raise HTTPException(503, "Could not reach analysis queue.") from exc
+
+    paused = db.scalars(select(Sample).where(
+        Sample.batch_id == batch_id, Sample.processing_status == "paused",
+    ).order_by(Sample.created_at, Sample.id)).all()
+    resumed = failed = 0
+    for sample in paused:
+        # Existing analyze endpoint creates a new RQ job and retains original media.
+        # A failed enqueue is reflected as failed rather than silently dropping work.
+        try:
+            analyze_sample(sample.id, db)
+            resumed += 1
+        except HTTPException:
+            failed += 1
+    return {"resumed": resumed, "failed": failed}
+
+
+@app.post("/api/batches/{batch_id}/cancel-queued")
+def cancel_queued_jobs(batch_id: str, db: Session = Depends(get_db)) -> dict[str, int]:
+    """Cancel only RQ jobs that have not started; never interrupt active Gemini calls."""
+    if db.get(Batch, batch_id) is None:
+        raise HTTPException(404, "Batch not found.")
+    redis = Redis.from_url(settings.redis_url)
+    jobs = db.scalars(select(ProcessingJob).join(
+        Sample, ProcessingJob.sample_id == Sample.id,
+    ).where(
+        Sample.batch_id == batch_id,
+        ProcessingJob.status == "queued",
+    ).with_for_update()).all()
+    cancelled = 0
+    for job in jobs:
+        sample = db.get(Sample, job.sample_id)
+        if sample is None or sample.processing_status != "queued":
+            continue
+        try:
+            rq_job = Job.fetch(job.id, connection=redis)
+            if rq_job.get_status(refresh=True) != "queued":
+                continue
+            rq_job.cancel()
+        except NoSuchJobError:
+            # The task may have left the queue; do not mark SQL as canceled
+            # without knowing whether it could still execute.
+            continue
+        except Exception as exc:
+            raise HTTPException(503, "Could not contact the processing queue.") from exc
+        job.status = "canceled"
+        job.current_stage = "canceled"
+        job.error_message = None
+        sample.processing_status = "canceled"
+        sample.updated_at = _now()
+        cancelled += 1
+    db.commit()
+    return {"canceled": cancelled}
 
 
 @app.post("/api/batches/{batch_id}/samples/delete")
@@ -274,7 +434,7 @@ def delete_selected_samples(
             try:
                 rmtree(folder)
             except OSError:
-                logging.exception("Could not clean saved media for deleted sample %s", sid)
+                logger.exception("Could not clean saved media for deleted sample %s", sid)
     return {"deleted": len(ids)}
 
 
@@ -343,7 +503,7 @@ def analyze_sample(sample_id: str, db: Session = Depends(get_db)) -> SampleOut:
             job_timeout=300, result_ttl=3600,
             job_id=job.id,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 - queue failures must restore consistent database state
         job.status = "failed"
         job.current_stage = "failed"
         job.error_message = "Unable to queue analysis. Check Redis and worker status."
@@ -382,6 +542,33 @@ def update_field(
     field.reviewed = True
     field.review_required = False
     field.review_reason = None
+    sample.review_status = "pending"
+    sample.updated_at = _now()
+    db.commit()
+    return sample_out(db, sample)
+
+
+@app.post("/api/samples/{sample_id}/verify", response_model=SampleOut)
+def verify_sample(sample_id: str, db: Session = Depends(get_db)) -> SampleOut:
+    """A reviewer confirms the complete sample after checking source evidence."""
+    sample = db.get(Sample, sample_id)
+    if sample is None:
+        raise HTTPException(404, "Sample not found.")
+    if sample.processing_status != "completed":
+        raise HTTPException(409, "Only completed samples can be verified.")
+    sample.review_status = "verified"
+    sample.updated_at = _now()
+    db.commit()
+    return sample_out(db, sample)
+
+
+@app.post("/api/samples/{sample_id}/reopen", response_model=SampleOut)
+def reopen_sample(sample_id: str, db: Session = Depends(get_db)) -> SampleOut:
+    sample = db.get(Sample, sample_id)
+    if sample is None:
+        raise HTTPException(404, "Sample not found.")
+    if sample.processing_status != "completed":
+        raise HTTPException(409, "Only completed samples can be reopened.")
     sample.review_status = "pending"
     sample.updated_at = _now()
     db.commit()

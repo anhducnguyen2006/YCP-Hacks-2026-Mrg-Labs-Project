@@ -15,11 +15,25 @@ export type BatchStatus = {
   processing: number;
   completed: number;
   failed: number;
+  canceled?: number;
+  paused?: number;
   needs_review: number;
   items: { id: string; status: string }[];
 };
 
 export type InventoryResponse = { total: number; items: Sample[] };
+export type ExportPreviewRow = { id: string; label: string; verified: boolean };
+
+export type QualityFlag = {
+  field_key: string;
+  code: "missing" | "unreadable" | "invalid_date" | "year_outlier";
+  message: string;
+};
+export type QualityReport = {
+  consensus_year: number | null;
+  scanned: number;
+  flags: Record<string, QualityFlag[]>;
+};
 
 export type SampleField = {
   id: string;
@@ -70,17 +84,45 @@ export const api = {
   baseUrl: API_BASE_URL,
   batches: () => request<Batch[]>("/api/batches"),
   batchStatus: (batchId: string) => request<BatchStatus>(`/api/batches/${encodeURIComponent(batchId)}/status`),
+  analysisGate: () => request<{ hold: null | { reason: "quota" | "unavailable"; seconds_remaining: number } }>("/api/analysis-gate"),
+  resumePaused: (batchId: string) => request<{ resumed: number; failed: number }>(
+    `/api/batches/${encodeURIComponent(batchId)}/resume-paused`, { method: "POST" }
+  ),
+  cancelQueued: (batchId: string) => request<{ canceled: number }>(
+    `/api/batches/${encodeURIComponent(batchId)}/cancel-queued`, { method: "POST" }
+  ),
+  batchQuality: (batchId: string) => request<QualityReport>(`/api/batches/${encodeURIComponent(batchId)}/quality`),
+  verifySample: (sampleId: string) => request<Sample>(`/api/samples/${encodeURIComponent(sampleId)}/verify`, { method: "POST" }),
+  reopenSample: (sampleId: string) => request<Sample>(`/api/samples/${encodeURIComponent(sampleId)}/reopen`, { method: "POST" }),
   deleteSamples: (batchId: string, sampleIds: string[]) =>
     request<{ deleted: number }>(`/api/batches/${encodeURIComponent(batchId)}/samples/delete`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sample_ids: sampleIds }),
     }),
-  inventory: (batchId: string, options: { search: string; status: string; confidence: string; sortBy: string; descending: boolean; offset: number }) => {
+  inventory: (batchId: string, options: { search: string; status: string; confidence: string; sortBy: string; descending: boolean; offset: number; flaggedOnly?: boolean }) => {
     const params = new URLSearchParams({
       search: options.search, status: options.status, confidence: options.confidence, sort_by: options.sortBy,
       descending: String(options.descending), offset: String(options.offset), limit: "50",
+      flagged_only: String(options.flaggedOnly ?? false),
     });
     return request<InventoryResponse>(`/api/batches/${encodeURIComponent(batchId)}/inventory?${params}`);
+  },
+  exportPreview: (batchId: string) =>
+    request<ExportPreviewRow[]>(`/api/batches/${encodeURIComponent(batchId)}/export-preview`),
+  exportSelected: async (batchId: string, sampleIds: string[], verifiedOnly: boolean): Promise<Blob> => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/batches/${encodeURIComponent(batchId)}/export-selected.csv`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sample_ids: sampleIds, verified_only: verifiedOnly }),
+      },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.detail ?? `Export failed (${response.status})`);
+    }
+    return response.blob();
   },
   exportBatch: async (batchId: string, reviewedOnly = false): Promise<Blob> => {
     const response = await fetch(
