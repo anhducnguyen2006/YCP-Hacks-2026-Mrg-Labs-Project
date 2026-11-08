@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { Alert, Badge, Box, Button, Divider, Group, Modal, Paper, Progress, ScrollArea, Stack, Text } from "@mantine/core";
+import { useRef, useState } from "react";
+import { Alert, Badge, Box, Button, Group, Paper, ScrollArea, Stack, Text } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2, Files, Pause, Play, UploadCloud, Ban, RotateCcw, Camera, Square } from "lucide-react";
+import { AlertCircle, CheckCircle2, Files, Pause, Play, UploadCloud, Ban, RotateCcw } from "lucide-react";
 import { api } from "../../api";
+import { AnalysisFeedback } from "./AnalysisFeedback";
 
 type UploadState = "ready" | "uploading" | "queued" | "processing" | "completed" | "failed" | "canceled" | "paused";
 type UploadItem = { id: number; file: File; state: UploadState; sampleId?: string; error?: string };
 const MAX_FILES = 800;
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-const MAX_RECORDING_MS = 15_000;
 const VALID_EXTENSIONS = /\.(mov|mp4|webm)$/i;
 
 export function BulkUpload({ batchId }: { batchId: string }) {
@@ -19,59 +19,10 @@ export function BulkUpload({ batchId }: { batchId: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [cameraError, setCameraError] = useState<string | null>(null);
   const nextId = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
-  const videoPreview = useRef<HTMLVideoElement>(null);
-  const cameraStream = useRef<MediaStream | null>(null);
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const recordingChunks = useRef<Blob[]>([]);
-  const discardRecording = useRef(false);
-  const recordingStartedAt = useRef(0);
-  const recordingTimer = useRef<number | undefined>(undefined);
-  const recordingStopTimer = useRef<number | undefined>(undefined);
   const itemsRef = useRef(items);
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (!cameraOpen) return;
-    let canceled = false;
-    setCameraReady(false);
-    setCameraError(null);
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setCameraError("Camera recording is not supported in this browser. Try a current version of Chrome or Edge.");
-      return;
-    }
-    void navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      .then((stream) => {
-        if (canceled) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        cameraStream.current = stream;
-        if (videoPreview.current) videoPreview.current.srcObject = stream;
-      })
-      .catch((error: unknown) => {
-        if (canceled) return;
-        const denied = error instanceof DOMException && error.name === "NotAllowedError";
-        setCameraError(denied
-          ? "Camera access was blocked. Allow camera access in your browser settings, then try again."
-          : "Could not open the desktop camera. Check that it is connected and not in use by another app.");
-      });
-    return () => { canceled = true; };
-  }, [cameraOpen]);
-
-  useEffect(() => () => {
-    window.clearInterval(recordingTimer.current);
-    window.clearTimeout(recordingStopTimer.current);
-    discardRecording.current = true;
-    if (mediaRecorder.current?.state === "recording") mediaRecorder.current.stop();
-    cameraStream.current?.getTracks().forEach((track) => track.stop());
-  }, []);
 
   const changeItems = (update: (previous: UploadItem[]) => UploadItem[]) => {
     const next = update(itemsRef.current);
@@ -117,58 +68,6 @@ export function BulkUpload({ batchId }: { batchId: string }) {
     changeItems((previous) => [...previous, ...accepted.map((file) => ({
       id: ++nextId.current, file, state: "ready" as const,
     }))]);
-  };
-  const stopRecording = () => {
-    window.clearInterval(recordingTimer.current);
-    window.clearTimeout(recordingStopTimer.current);
-    if (mediaRecorder.current?.state === "recording") mediaRecorder.current.stop();
-    setRecording(false);
-  };
-  const closeCamera = () => {
-    discardRecording.current = true;
-    stopRecording();
-    cameraStream.current?.getTracks().forEach((track) => track.stop());
-    cameraStream.current = null;
-    setCameraReady(false);
-    setCameraOpen(false);
-  };
-  const startRecording = () => {
-    const stream = cameraStream.current;
-    if (!stream || running) return;
-    try {
-      const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
-        .find((type) => MediaRecorder.isTypeSupported(type));
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      recordingChunks.current = [];
-      discardRecording.current = false;
-      recorder.ondataavailable = (event) => {
-        if (event.data.size) recordingChunks.current.push(event.data);
-      };
-      recorder.onerror = () => {
-        setCameraError("The camera recording stopped unexpectedly. Try recording again.");
-        setRecording(false);
-      };
-      recorder.onstop = () => {
-        if (discardRecording.current || recordingChunks.current.length === 0) return;
-        const blob = new Blob(recordingChunks.current, { type: recorder.mimeType || "video/webm" });
-        const file = new File([blob], `camera-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`, {
-          type: "video/webm",
-        });
-        addFiles([file]);
-      };
-      mediaRecorder.current = recorder;
-      recordingStartedAt.current = Date.now();
-      setRecordingSeconds(0);
-      recorder.start(250);
-      setRecording(true);
-      recordingTimer.current = window.setInterval(() => {
-        setRecordingSeconds(Math.floor((Date.now() - recordingStartedAt.current) / 1000));
-      }, 250);
-      recordingStopTimer.current = window.setTimeout(stopRecording, MAX_RECORDING_MS);
-      setCameraError(null);
-    } catch {
-      setCameraError("Could not start recording. Check that your camera is available and try again.");
-    }
   };
   const patch = (id: number, changes: Partial<UploadItem>) =>
     changeItems((previous) => previous.map((item) => item.id === id ? { ...item, ...changes } : item));
@@ -216,6 +115,8 @@ export function BulkUpload({ batchId }: { batchId: string }) {
             patch(item.id, { state: "uploading", error: undefined });
             const sample = await api.uploadSample(batchId, item.file);
             patch(item.id, { state: "queued", sampleId: sample.id });
+            void queryClient.invalidateQueries({ queryKey: ["inventory", batchId] });
+            void queryClient.invalidateQueries({ queryKey: ["export-preview", batchId] });
             await api.analyze(sample.id);
           }
         } catch (error) {
@@ -234,6 +135,9 @@ export function BulkUpload({ batchId }: { batchId: string }) {
     void queryClient.invalidateQueries({ queryKey: ["batch-status", batchId] });
     void queryClient.invalidateQueries({ queryKey: ["samples", batchId] });
     void queryClient.invalidateQueries({ queryKey: ["review-samples", batchId] });
+    void queryClient.invalidateQueries({ queryKey: ["inventory", batchId] });
+    void queryClient.invalidateQueries({ queryKey: ["quality", batchId] });
+    void queryClient.invalidateQueries({ queryKey: ["export-preview", batchId] });
   };
 
   const visible = showAll ? items : items.slice(0, 30);
@@ -251,7 +155,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
       </Button>
       <Text size="xs" c="dimmed">Clears the shared Gemini hold and requeues this batch only.</Text>
     </Group>}
-    <Text size="sm" c="dimmed">Add a recording of each sample label. Upload existing videos or use your desktop camera.</Text>
+    <Text size="sm" c="dimmed">Upload a video of each sample label from your computer.</Text>
     <Box
       role="button"
       tabIndex={running ? -1 : 0}
@@ -278,45 +182,12 @@ export function BulkUpload({ batchId }: { batchId: string }) {
         onChange={(event) => { addFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ""; }}
       />
     </Box>
-    <Divider label="or record a sample" labelPosition="center" />
-    <Group justify="space-between" className="camera-entry">
-      <Box><Text fw={600} size="sm">Capture a sample now</Text>
-        <Text size="xs" c="dimmed">One tube per recording · Up to 15 seconds</Text></Box>
-      <Button variant="light" leftSection={<Camera size={16} />} disabled={running}
-        onClick={() => { setCameraError(null); setCameraOpen(true); }}>
-        Record with desktop camera
-      </Button>
-    </Group>
-    <Modal opened={cameraOpen} onClose={closeCamera} title="Record a sample video" centered size="lg">
-      <Stack gap="sm">
-        {cameraError && <Alert color="red" icon={<AlertCircle size={16} />}>{cameraError}</Alert>}
-        <Box style={{ background: "#101820", borderRadius: 8, overflow: "hidden", minHeight: 220,
-          display: "grid", placeItems: "center" }}>
-          <video ref={videoPreview} autoPlay playsInline muted
-            onCanPlay={() => setCameraReady(true)}
-            aria-label="Desktop camera preview"
-            style={{ width: "100%", maxHeight: "55vh", objectFit: "contain" }} />
-          {!cameraReady && !cameraError && <Text c="white" size="sm">Opening camera…</Text>}
-        </Box>
-        <Text size="xs" c="dimmed">
-          Record up to 15 seconds while rotating the sample label. The video will be added to the upload list for analysis.
-        </Text>
-        <Group justify="space-between">
-          <Text size="sm" aria-live="polite">
-            {recording ? `Recording · 00:${String(recordingSeconds).padStart(2, "0")} / 00:15` : "Ready when you are"}
-          </Text>
-          <Group gap="xs">
-            <Button variant="default" onClick={closeCamera}>Cancel</Button>
-            {recording
-              ? <Button color="red" leftSection={<Square size={14} />} onClick={stopRecording}>Stop & add video</Button>
-              : <Button color="green" leftSection={<Camera size={15} />} disabled={!cameraReady || Boolean(cameraError)}
-                onClick={startRecording}>Start recording</Button>}
-          </Group>
-        </Group>
-      </Stack>
-    </Modal>
     {notice && <Alert color="yellow" icon={<AlertCircle size={16} />}>{notice}</Alert>}
     {status.isError && <Alert color="yellow">Could not refresh batch processing status: {status.error.message}</Alert>}
+    <AnalysisFeedback batchId={batchId} status={status.data}
+      knownIds={items.flatMap(item => item.sampleId ? [item.sampleId] : [])}
+      progress={items.length ? {total: items.length, completed: done, failed: errors, canceled,
+        active: inProgress, paused: pausedCount, uploading: items.filter(item => item.state === "uploading").length} : undefined} />
     {items.length > 0 && <>
       <Group justify="space-between" wrap="wrap">
         <Group gap="xs">
@@ -356,7 +227,6 @@ export function BulkUpload({ batchId }: { batchId: string }) {
           </Button>}
         </Group>
       </Group>
-      <Progress value={items.length ? Math.round(done / items.length * 100) : 0} color="green" size="lg" aria-label="Batch analysis completion" />
       <ScrollArea.Autosize mah={330} type="auto">
         <Stack gap={5}>
           {visible.map((item) => {

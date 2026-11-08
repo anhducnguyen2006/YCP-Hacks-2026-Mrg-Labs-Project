@@ -6,6 +6,11 @@ import { afterEach, vi } from "vitest";
 // does not register its own automatic cleanup. Keep tests isolated.
 afterEach(() => cleanup());
 
+// jsdom has no media playback engine. Audio event/error behavior is exercised
+// separately with controllable recordings in OiledHelper.playback.test.tsx.
+vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+
 // Mantine Select and ScrollArea depend on ResizeObserver; jsdom does not implement it.
 vi.stubGlobal("ResizeObserver", class {
   observe() {}

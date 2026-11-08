@@ -19,7 +19,7 @@ test("creates a batch with the receiving date before enabling upload", async () 
     needs_review: 0, items: [],
   });
   render(<MantineProvider><QueryClientProvider client={new QueryClient()}><MemoryRouter><ScanPage /></MemoryRouter></QueryClientProvider></MantineProvider>);
-  expect(screen.getByText("Select or create a batch above to enable video upload.")).toBeInTheDocument();
+  expect(screen.getByText("Select or create a batch above to upload sample videos.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "New batch" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Batch name" }), { target: { value: " Morning intake " } });
   fireEvent.change(screen.getByLabelText(/Date received/), { target: { value: "2026-11-07" } });

@@ -3,9 +3,10 @@ import { Alert, Box, Button, Grid, Group, Loader, Paper, Select, Stack, Text, Te
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ArrowRight, FlaskConical, Plus, ScanLine } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import { api } from "../../api";
+import { api, type Batch } from "../../api";
 import { useWorkspaceSettings } from "../settings/WorkspaceSettings";
 import { BulkUpload } from "./BulkUpload";
+import { useActiveBatch } from "../samples/useActiveBatch";
 
 function localDate() {
   const now = new Date();
@@ -16,18 +17,19 @@ export function ScanPage() {
   const { preferences } = useWorkspaceSettings();
   const client = useQueryClient();
   const [params, setParams] = useSearchParams();
-  const batchId = params.get("batch");
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [date, setDate] = useState(() => preferences.receivingDate || localDate());
 
   const batches = useQuery({ queryKey: ["batches"], queryFn: api.batches, retry: false });
+  const batchId = useActiveBatch(params.get("batch"), batches.data);
   const create = useMutation({
     mutationFn: () => api.createBatch({
       name: name.trim(), receiving_date: date,
       default_export_filename: preferences.exportFilename,
     }),
     onSuccess: (batch) => {
+      client.setQueryData<Batch[]>(["batches"], previous => [batch, ...(previous || []).filter(item => item.id !== batch.id)]);
       void client.invalidateQueries({ queryKey: ["batches"] });
       setParams({ batch: batch.id });
       setCreating(false);
@@ -94,7 +96,7 @@ export function ScanPage() {
             </Group>
             {batchId ? <BulkUpload key={batchId} batchId={batchId} /> :
               <Alert icon={<FlaskConical size={18} />} color="gray">
-                Select or create a batch above to upload videos or record with your camera.
+                Select or create a batch above to upload sample videos.
               </Alert>}
           </Paper>
         </Stack>
@@ -103,7 +105,7 @@ export function ScanPage() {
       <Grid.Col span={{ base: 12, lg: 4 }}>
         <Paper withBorder radius="lg" p="lg" className="scan-guide">
           <Text className="eyebrow">A CLEAR LABEL STARTS HERE</Text>
-          <Title order={4} mt="xs" mb="md">Recording checklist</Title>
+          <Title order={4} mt="xs" mb="md">Video checklist</Title>
           <Stack gap="sm">
             {[
               "Use even lighting; keep the label in focus.",
