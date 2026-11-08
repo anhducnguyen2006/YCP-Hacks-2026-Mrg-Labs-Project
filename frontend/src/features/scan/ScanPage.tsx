@@ -36,7 +36,7 @@ export function ScanPage() {
   });
 
   return <Stack gap="lg" className="scan-page">
-    <Group justify="space-between" align="center">
+    <Group justify="space-between" align="center" className="intake-heading">
       <Box>
         <Text className="eyebrow">SAMPLE INTAKE</Text>
         <Title order={1} mt={6}>Scan samples</Title>
@@ -48,7 +48,7 @@ export function ScanPage() {
     <Grid gutter="lg" align="start">
       <Grid.Col span={{ base: 12, lg: 8 }}>
         <Stack gap="md">
-          <Paper withBorder radius="lg" p="lg">
+          <Paper withBorder radius="lg" p="lg" className="intake-panel">
             <Group justify="space-between" mb="sm">
               <Title order={3}>1. Choose a batch</Title>
               <Button variant="subtle" color="green" size="xs" leftSection={<Plus size={14} />}
@@ -85,7 +85,7 @@ export function ScanPage() {
               <Text size="sm" c="dimmed" mt="sm">No batches yet. Create one to start scanning.</Text>}
           </Paper>
 
-          <Paper withBorder radius="lg" p="lg">
+          <Paper withBorder radius="lg" p="lg" className="intake-panel intake-media-panel">
             <Group justify="space-between" align="center" mb="sm">
               <Title order={3}>2. Add videos</Title>
               {batchId && <Button component={Link} to={`/samples?batch=${encodeURIComponent(batchId)}`}
@@ -94,7 +94,7 @@ export function ScanPage() {
             </Group>
             {batchId ? <BulkUpload key={batchId} batchId={batchId} /> :
               <Alert icon={<FlaskConical size={18} />} color="gray">
-                Select or create a batch above to enable video upload.
+                Select or create a batch above to upload videos or record with your camera.
               </Alert>}
           </Paper>
         </Stack>

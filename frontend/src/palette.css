@@ -1,0 +1,123 @@
+/* Laboratory palette. Loaded last so legacy component colors share one system. */
+:root {
+  --lab-background: #f5f7f6;
+  --lab-surface: #ffffff;
+  --lab-secondary: #edf2ef;
+  --lab-text: #122e50;
+  --lab-muted: #4d6259;
+  --lab-border: #d6dfda;
+  --lab-control-border: #71857a;
+  --lab-placeholder: #596d63;
+  --lab-accent: #25633e;
+  --lab-accent-hover: #1e5133;
+  --lab-on-accent: #ffffff;
+  --lab-warning: #76510b;
+  --lab-warning-surface: #fff5d6;
+  --lab-error: #a52c35;
+  --lab-error-surface: #fdedef;
+  --lab-input: #ffffff;
+}
+:root[data-mantine-color-scheme="dark"] {
+  --lab-background: #101820;
+  --lab-surface: #1b2930;
+  --lab-secondary: #243a30;
+  --lab-text: #f1f5f3;
+  --lab-muted: #b4c5ba;
+  --lab-border: #3b514a;
+  --lab-control-border: #82988d;
+  --lab-placeholder: #b4c5ba;
+  --lab-accent: #65c18c;
+  --lab-accent-hover: #85d2a5;
+  --lab-on-accent: #10261a;
+  --lab-warning: #f5d889;
+  --lab-warning-surface: #3b3017;
+  --lab-error: #ffb4bd;
+  --lab-error-surface: #3b252b;
+  --lab-input: #162229;
+}
+body { background: var(--lab-background); color: var(--lab-text); }
+::selection { background: var(--lab-accent); color: var(--lab-on-accent); }
+:root, .lab-shell, [data-mantine-color-scheme="dark"] .lab-shell {
+  --mantine-color-text: var(--lab-text);
+  --mantine-color-dimmed: var(--lab-muted);
+  --mantine-color-placeholder: var(--lab-placeholder);
+  --mantine-color-green-filled: var(--lab-accent);
+  --mantine-color-green-filled-hover: var(--lab-accent-hover);
+  --mantine-color-green-light: var(--lab-secondary);
+  --mantine-color-green-light-hover: var(--lab-secondary);
+  --mantine-color-green-light-color: var(--lab-accent);
+  --mantine-color-green-outline: var(--lab-accent);
+  --mantine-color-teal-6: var(--lab-accent);
+  --mantine-color-red-6: var(--lab-error);
+  --mantine-color-red-light-color: var(--lab-error);
+  --mantine-color-red-light: var(--lab-error-surface);
+  --mantine-color-red-filled: var(--lab-error);
+  --mantine-color-yellow-light-color: var(--lab-warning);
+  --mantine-color-yellow-light: var(--lab-warning-surface);
+}
+.lab-shell .header, .lab-shell .navbar,
+[data-mantine-color-scheme="dark"] .lab-shell .header,
+[data-mantine-color-scheme="dark"] .lab-shell .navbar { background: var(--lab-surface); }
+.lab-shell .mantine-Paper-root,
+[data-mantine-color-scheme="dark"] .lab-shell .mantine-Paper-root { background: var(--lab-surface); border-color: var(--lab-border); }
+.lab-shell .nav-label, .lab-shell .eyebrow, .lab-shell .nav-footer,
+[data-mantine-color-scheme="dark"] .lab-shell .eyebrow { color: var(--lab-muted); border-color: var(--lab-border); }
+.lab-shell .brand-app-name { color: var(--lab-text); border-color: var(--lab-border); }
+.lab-shell .nav-footer .mantine-Text-root:first-child { color: var(--lab-accent); }
+.lab-shell .mantine-NavLink-root,
+[data-mantine-color-scheme="dark"] .lab-shell .mantine-NavLink-root { color: var(--lab-muted); }
+.lab-shell .mantine-NavLink-root[data-active],
+[data-mantine-color-scheme="dark"] .lab-shell .mantine-NavLink-root[data-active] {
+  background: var(--lab-secondary); color: var(--lab-accent); box-shadow: inset 3px 0 var(--lab-accent);
+}
+.mantine-Input-input,
+[data-mantine-color-scheme="dark"] .mantine-Input-input {
+  background: var(--lab-input); color: var(--lab-text); border-color: var(--lab-control-border);
+}
+.mantine-Input-input::placeholder,
+[data-mantine-color-scheme="dark"] .mantine-Input-input::placeholder { color: var(--lab-placeholder); opacity: 1; }
+.mantine-Input-input:focus, .mantine-Input-input:focus-within { border-color: var(--lab-accent); outline: 2px solid var(--lab-accent); outline-offset: 2px; }
+.mantine-Input-input[aria-invalid="true"], .mantine-Input-input[data-error] { border-color: var(--lab-error); }
+.mantine-InputWrapper-error { color: var(--lab-error); }
+.mantine-Button-root[style*="--mantine-color-green-filled"],
+[data-mantine-color-scheme="dark"] .lab-shell .mantine-Button-root[style*="--mantine-color-green-filled"] { color: var(--lab-on-accent); }
+.mantine-Button-root[style*="--mantine-color-red-filled"] { color: var(--lab-on-accent); }
+:root[data-mantine-color-scheme] .lab-shell .mantine-Button-root:disabled {
+  color: var(--lab-muted); background: var(--lab-secondary); border-color: var(--lab-border);
+}
+.lab-shell .bulk-dropzone, [data-mantine-color-scheme="dark"] .lab-shell .bulk-dropzone {
+  background: var(--lab-secondary); border-color: var(--lab-control-border); color: var(--lab-text);
+}
+.lab-shell .bulk-dropzone svg { color: var(--lab-accent); }
+.lab-shell .bulk-dropzone:hover, .lab-shell .bulk-dropzone-active,
+[data-mantine-color-scheme="dark"] .lab-shell .bulk-dropzone:hover { background: var(--lab-secondary); border-color: var(--lab-accent); }
+.lab-shell .scan-guide, [data-mantine-color-scheme="dark"] .lab-shell .scan-guide { background: var(--lab-secondary); color: var(--lab-text); }
+.lab-shell .review-table th, [data-mantine-color-scheme="dark"] .lab-shell .review-table th { background: var(--lab-secondary); color: var(--lab-text); }
+.lab-shell .review-table tbody tr:hover, [data-mantine-color-scheme="dark"] .lab-shell .review-table tbody tr:hover { background: var(--lab-secondary); }
+.lab-shell .review-field-warning, .lab-shell .review-table .review-cell-warning,
+[data-mantine-color-scheme="dark"] .lab-shell .review-field-warning,
+[data-mantine-color-scheme="dark"] .lab-shell .review-table .review-cell-warning { background: var(--lab-warning-surface); color: var(--lab-warning); }
+.lab-shell .quality-cell-warning, .lab-shell .quality-field-warning,
+[data-mantine-color-scheme="dark"] .lab-shell .quality-cell-warning,
+[data-mantine-color-scheme="dark"] .lab-shell .quality-field-warning { background: var(--lab-error-surface); color: var(--lab-error); border-color: var(--lab-error); }
+/* Remove decorative gradient layers; the barcode's functional stripe pattern stays. */
+.welcome-panel, .lab-welcome-hero, .premium-welcome .premium-hero { background: var(--lab-secondary); }
+.lab-gradient, .premium-welcome .premium-gradient { display: none; }
+.liquid-theme-toggle { background: var(--lab-secondary); border-color: var(--lab-control-border); }
+.liquid-theme-toggle svg { opacity: 1; }
+.liquid-theme-sun, .liquid-theme-moon,
+.liquid-theme-toggle[aria-checked="true"] .liquid-theme-sun,
+.liquid-theme-toggle[aria-checked="true"] .liquid-theme-moon { color: var(--lab-muted); }
+/* Prevent the header's second row from covering the first form control. */
+.lab-shell .header .mantine-Group-root { flex-wrap: nowrap; gap: 8px; }
+.lab-shell .header > .mantine-Group-root > .mantine-Group-root { flex-shrink: 0; }
+@media (max-width: 960px) {
+  .lab-shell .brand-app-name, .lab-shell .header .mantine-Badge-root { display: none; }
+  .lab-shell .header > .mantine-Group-root { padding-inline: 12px; }
+}
+@media (max-width: 600px) {
+  .intake-heading > .mantine-ThemeIcon-root { display: none; }
+  .lab-shell .header button[aria-label="How to use Sample Scanner"] { width: 44px; padding-inline: 0; }
+  .lab-shell .header button[aria-label="How to use Sample Scanner"] .mantine-Button-label { display: none; }
+  .lab-shell .header button[aria-label="How to use Sample Scanner"] .mantine-Button-section { margin: 0; }
+}

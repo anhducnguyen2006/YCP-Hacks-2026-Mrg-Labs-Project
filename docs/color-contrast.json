@@ -1,0 +1,194 @@
+[
+  {
+    "role": "Before: light main text",
+    "fg": "#122E50",
+    "bg": "#FFFFFF",
+    "ratio": 13.704395346784834,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "Before: light secondary text",
+    "fg": "#53665E",
+    "bg": "#FFFFFF",
+    "ratio": 6.122486710742944,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "Before: light footer teal",
+    "fg": "#12B886",
+    "bg": "#FFFFFF",
+    "ratio": 2.552830947794683,
+    "minimum": 4.5,
+    "pass": false
+  },
+  {
+    "role": "Before: light placeholder",
+    "fg": "#ADB5BD",
+    "bg": "#FFFFFF",
+    "ratio": 2.074848407168177,
+    "minimum": 4.5,
+    "pass": false
+  },
+  {
+    "role": "Before: light input boundary",
+    "fg": "#CED4DA",
+    "bg": "#FFFFFF",
+    "ratio": 1.4942209062124174,
+    "minimum": 3,
+    "pass": false
+  },
+  {
+    "role": "Before: dark main text",
+    "fg": "#F1F5F3",
+    "bg": "#1B2930",
+    "ratio": 13.57689701732559,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "Before: dark secondary text",
+    "fg": "#B4C5BA",
+    "bg": "#1B2930",
+    "ratio": 8.273405758696878,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "Before: dark input boundary",
+    "fg": "#4A6258",
+    "bg": "#162229",
+    "ratio": 2.455053361373653,
+    "minimum": 3,
+    "pass": false
+  },
+  {
+    "role": "After: light main text",
+    "fg": "#122E50",
+    "bg": "#FFFFFF",
+    "ratio": 13.704395346784834,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: light secondary text",
+    "fg": "#4D6259",
+    "bg": "#F5F7F6",
+    "ratio": 6.0861485351233755,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: light placeholder",
+    "fg": "#596D63",
+    "bg": "#FFFFFF",
+    "ratio": 5.537397031372356,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: light input boundary",
+    "fg": "#71857A",
+    "bg": "#FFFFFF",
+    "ratio": 3.9339237446119633,
+    "minimum": 3,
+    "pass": true
+  },
+  {
+    "role": "After: light primary button",
+    "fg": "#FFFFFF",
+    "bg": "#25633E",
+    "ratio": 7.1600043094705015,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: light accent text",
+    "fg": "#25633E",
+    "bg": "#EDF2EF",
+    "ratio": 6.324041850487521,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: dark main text",
+    "fg": "#F1F5F3",
+    "bg": "#1B2930",
+    "ratio": 13.57689701732559,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: dark secondary text",
+    "fg": "#B4C5BA",
+    "bg": "#1B2930",
+    "ratio": 8.273405758696878,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: dark placeholder",
+    "fg": "#B4C5BA",
+    "bg": "#162229",
+    "ratio": 8.985862355542645,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: dark input boundary",
+    "fg": "#82988D",
+    "bg": "#1B2930",
+    "ratio": 4.8526718087639535,
+    "minimum": 3,
+    "pass": true
+  },
+  {
+    "role": "After: dark primary button",
+    "fg": "#10261A",
+    "bg": "#65C18C",
+    "ratio": 7.274436311149776,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: dark accent text",
+    "fg": "#65C18C",
+    "bg": "#243A30",
+    "ratio": 5.5487414966521795,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: light warning",
+    "fg": "#76510B",
+    "bg": "#FFF5D6",
+    "ratio": 6.532256907748641,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: dark warning",
+    "fg": "#F5D889",
+    "bg": "#3B3017",
+    "ratio": 9.293648961363788,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: light error",
+    "fg": "#A52C35",
+    "bg": "#FDEDEF",
+    "ratio": 6.155175011006149,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "role": "After: dark error",
+    "fg": "#FFB4BD",
+    "bg": "#3B252B",
+    "ratio": 8.425151695407408,
+    "minimum": 4.5,
+    "pass": true
+  }
+]

@@ -1,4 +1,18 @@
 :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #172f35; background: #f7faf9; }
+/* Research workspace refinement: clear hierarchy and restrained interaction. */
+.intake-heading { padding-block: 8px 16px; border-bottom: 1px solid var(--lab-border); }
+.intake-heading h1 { font-size: clamp(28px, 3vw, 38px); line-height: 1.15; }
+.lab-shell .intake-panel { border-color: var(--lab-border); padding: clamp(20px, 2vw, 30px); }
+.intake-panel h3 { font-size: 18px; letter-spacing: -.02em; }
+.lab-shell .camera-entry { padding: 18px 20px; border: 1px solid var(--lab-border); border-radius: 12px; background: var(--lab-surface); }
+.lab-shell .bulk-dropzone { min-height: 180px; border-radius: 12px; }
+.lab-shell .bulk-dropzone:focus-visible { outline: 3px solid var(--lab-accent); outline-offset: 4px; }
+.lab-shell .mantine-NavLink-root { min-height: 46px; border-radius: 8px; }
+.lab-shell .mantine-NavLink-root:focus-visible, .lab-shell .mantine-Button-root:focus-visible { outline: 3px solid var(--lab-accent); outline-offset: 3px; }
+.lab-shell .mantine-Button-root { transition: transform 160ms ease, background-color 200ms ease, border-color 200ms ease; }
+@media (hover: hover) { .lab-shell .mantine-Button-root:not(:disabled):active { transform: translateY(1px); } }
+@media (max-width: 600px) { .camera-entry > .mantine-Button-root { width: 100%; min-height: 44px; } .intake-heading { gap: 16px; } }
+@media (prefers-reduced-motion: reduce) { .lab-shell .mantine-Button-root { transition: none; transform: none !important; } }
 body { margin: 0; min-width: 320px; }
 html[data-reduce-motion="true"] *, html[data-reduce-motion="true"] *::before, html[data-reduce-motion="true"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 html[data-reduce-motion="true"] .home-motion > .scroll-section { opacity: 1; transform: none; }

@@ -251,7 +251,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
       </Button>
       <Text size="xs" c="dimmed">Clears the shared Gemini hold and requeues this batch only.</Text>
     </Group>}
-    <Text size="sm" c="dimmed">Drop up to 800 rotation videos. Uploads use two concurrent connections; analysis runs through the existing background worker queue.</Text>
+    <Text size="sm" c="dimmed">Add a recording of each sample label. Upload existing videos or use your desktop camera.</Text>
     <Box
       role="button"
       tabIndex={running ? -1 : 0}
@@ -267,7 +267,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
     >
       <UploadCloud size={32} color="#288647" />
       <Text fw={700} size="sm">Drop MOV, MP4, or WebM videos here</Text>
-      <Text c="dimmed" size="xs">Or click to browse · Up to 50 MB each</Text>
+      <Text c="dimmed" size="xs">Click to browse · Up to 800 videos · 50 MB each</Text>
       <input
         ref={fileInput}
         type="file"
@@ -279,7 +279,9 @@ export function BulkUpload({ batchId }: { batchId: string }) {
       />
     </Box>
     <Divider label="or record a sample" labelPosition="center" />
-    <Group justify="center">
+    <Group justify="space-between" className="camera-entry">
+      <Box><Text fw={600} size="sm">Capture a sample now</Text>
+        <Text size="xs" c="dimmed">One tube per recording · Up to 15 seconds</Text></Box>
       <Button variant="light" leftSection={<Camera size={16} />} disabled={running}
         onClick={() => { setCameraError(null); setCameraOpen(true); }}>
         Record with desktop camera

@@ -60,7 +60,7 @@ function Layout() {
           ))}
         </Stack>
         <Box mt="auto" className="nav-footer">
-          <Text size="xs" fw={700} c="teal">MRG LABORATORIES</Text>
+          <Text size="xs" fw={700} className="brand-caption">MRG LABORATORIES</Text>
           <Text size="xs" c="dimmed" mt={4}>Sample digitization workspace</Text>
         </Box>
       </AppShell.Navbar>
