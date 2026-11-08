@@ -58,7 +58,7 @@ test("cancel queued analyses is separate from already running work", async () =>
   expect(await screen.findByText(/2 queued analysis job\(s\) canceled/)).toBeInTheDocument();
 });
 
-test("quota hold warns and resumes paused scans without uploading a video again", async () => {
+test("legacy paused scans can resume without re-uploading videos", async () => {
   vi.mocked(api.analysisGate).mockResolvedValue({
     hold: { reason: "quota", seconds_remaining: 1800 },
   });
@@ -72,7 +72,7 @@ test("quota hold warns and resumes paused scans without uploading a video again"
   render(<MantineProvider><QueryClientProvider client={client}>
     <BulkUpload batchId="batch-1" />
   </QueryClientProvider></MantineProvider>);
-  expect(await screen.findByText("Gemini rate or quota limit detected")).toBeInTheDocument();
+  expect(await screen.findByText("2 paused from an earlier run")).toBeInTheDocument();
   fireEvent.click(await screen.findByRole("button", { name: "Resume paused analyses" }));
   await waitFor(() => expect(api.resumePaused).toHaveBeenCalledWith("batch-1"));
   expect(api.uploadSample).not.toHaveBeenCalled();

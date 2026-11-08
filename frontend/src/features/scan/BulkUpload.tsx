@@ -88,12 +88,6 @@ export function BulkUpload({ batchId }: { batchId: string }) {
       return uploading || pendingServer > 0 ? 3000 : 10000;
     },
   });
-  const gate = useQuery({
-    queryKey: ["analysis-gate"],
-    queryFn: api.analysisGate,
-    refetchInterval: 10000,
-    retry: false,
-  });
   const serverStates = new Map((status.data?.items ?? []).map((item) => [item.id, item.status]));
   const effectiveState = (item: UploadItem) =>
     item.sampleId ? (serverStates.get(item.sampleId) ?? item.state) : item.state;
@@ -179,7 +173,6 @@ export function BulkUpload({ batchId }: { batchId: string }) {
       setNotice(`Resumed ${result.resumed} paused scan(s).${result.failed ? ` ${result.failed} could not be requeued.` : ""}`);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["batch-status", batchId] }),
-        queryClient.invalidateQueries({ queryKey: ["analysis-gate"] }),
       ]);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not resume paused scans.");
@@ -190,7 +183,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
     try {
       const result = await api.cancelQueued(batchId);
       await queryClient.invalidateQueries({ queryKey: ["batch-status", batchId] });
-      setNotice(`${result.canceled} queued analysis job(s) canceled. Already-running Gemini requests continue.`);
+      setNotice(`${result.canceled} queued analysis job(s) canceled. Already-running OCR analyses continue.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not cancel queued scans.");
     }
@@ -238,18 +231,13 @@ export function BulkUpload({ batchId }: { batchId: string }) {
 
   const visible = showAll ? items : items.slice(0, 30);
   return <Stack gap="md">
-    {gate.data?.hold && <Alert color="yellow" icon={<AlertCircle size={16} />}
-      title={gate.data.hold.reason === "quota" ? "Gemini rate or quota limit detected" : "Gemini temporarily unavailable"}>
-      New analyses are held to avoid wasting API requests. Existing videos are saved.
-      Resume manually when capacity is available; the app does not automatically retry.
-    </Alert>}
     {(status.data?.paused ?? 0) > 0 && <Group gap="sm">
-      <Badge color="yellow">{status.data?.paused ?? 0} awaiting Gemini capacity</Badge>
+      <Badge color="yellow">{status.data?.paused ?? 0} paused from an earlier run</Badge>
       <Button variant="light" color="orange" size="xs"
         leftSection={<RotateCcw size={14} />} onClick={() => void resumeHeld()}>
         Resume paused analyses
       </Button>
-      <Text size="xs" c="dimmed">Clears the shared Gemini hold and requeues this batch only.</Text>
+      <Text size="xs" c="dimmed">Requeues previously paused batch records for local OCR.</Text>
     </Group>}
     <Text size="sm" c="dimmed">Add a recording of each sample label. Upload existing videos or use your desktop camera.</Text>
     <Box
@@ -380,7 +368,7 @@ export function BulkUpload({ batchId }: { batchId: string }) {
       </Button>}
       <Text size="xs" c="dimmed">
         Pause stops starting further uploads after current transfers finish.
-        Cancel queued analyses removes work that has not started; it cannot abort an active Gemini request.
+        Cancel queued analyses removes work that has not started; it cannot abort an active OCR task.
         Keep this page open while uploads are in progress.
       </Text>
     </>}
